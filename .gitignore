@@ -1,0 +1,12 @@
+﻿.venv/
+__pycache__/
+*.pyc
+
+dataset/
+runs/
+
+python-*.exe
+
+*.cache
+Testing/videos/
+Testing/results/
