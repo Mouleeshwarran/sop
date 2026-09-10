@@ -1,0 +1,4 @@
+//Run Frontend
+python -m http.server 5500
+//Open Frontend
+http://localhost:5500/frontend/
