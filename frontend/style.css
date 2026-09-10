@@ -1,0 +1,751 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,
+body {
+    width: 100%;
+    min-height: 100%;
+}
+
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #031321;
+    color: #ffffff;
+    overflow-x: hidden;
+}
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.header {
+    height: 105px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 35px;
+    border-bottom: 1px solid #123b5c;
+    background: #031321;
+}
+
+.logo-section {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.logo {
+    font-size: 50px;
+    line-height: 1;
+}
+
+.logo-section h1 {
+    font-size: 42px;
+    letter-spacing: 4px;
+}
+
+.logo-section p {
+    font-size: 15px;
+    color: #d8e4ee;
+    margin-top: 4px;
+}
+
+.tagline {
+    color: #79b9eb;
+    font-size: 18px;
+    white-space: nowrap;
+}
+
+.settings-btn {
+    background: #0b2033;
+    color: white;
+    border: 1px solid #173d5b;
+    border-radius: 16px;
+    padding: 15px 25px;
+    font-size: 17px;
+    cursor: pointer;
+}
+
+/* =========================================================
+   APPLICATION LAYOUT
+   ========================================================= */
+
+.app-container {
+    display: flex;
+    min-height: calc(100vh - 105px);
+}
+
+/* =========================================================
+   SIDEBAR
+   ========================================================= */
+
+.sidebar {
+    width: 205px;
+    flex-shrink: 0;
+    padding: 25px 0;
+    border-right: 1px solid #123b5c;
+    position: relative;
+}
+
+.nav-item {
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: #b9cde0;
+    padding: 20px 25px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-size: 17px;
+    cursor: pointer;
+    text-align: left;
+}
+
+.nav-item:hover {
+    background: #0a2940;
+    color: white;
+}
+
+.nav-item.active {
+    background: linear-gradient(90deg, #0875d1, #075aa5);
+    color: white;
+    border-radius: 0 15px 15px 0;
+}
+
+.sidebar-quote {
+    position: absolute;
+    bottom: 35px;
+    left: 25px;
+    color: #a8c1d7;
+    font-style: italic;
+    line-height: 1.5;
+}
+
+/* =========================================================
+   MAIN CONTENT
+   ========================================================= */
+
+.main-content {
+    flex: 1;
+    min-width: 0;
+
+    display: grid;
+    grid-template-columns: minmax(600px, 1fr) 390px;
+
+    gap: 20px;
+    padding: 20px;
+}
+
+/* =========================================================
+   CAMERA SECTION
+   ========================================================= */
+
+.camera-section {
+    min-width: 0;
+}
+
+/* =========================================================
+   CAMERA CONTAINER
+   ========================================================= */
+
+.camera-container {
+    position: relative;
+
+    width: 100%;
+    height: 600px;
+
+    background: #020b12;
+
+    border: 2px solid #174e76;
+    border-radius: 20px;
+
+    overflow: hidden;
+
+    box-shadow:
+        0 0 20px rgba(0, 100, 180, 0.15);
+}
+
+/* =========================================================
+   REAL CAMERA VIDEO
+   ========================================================= */
+
+#camera {
+    position: absolute;
+
+    top: 0;
+    left: 0;
+
+    width: 100%;
+    height: 100%;
+
+    object-fit: cover;
+
+    display: none;
+
+    z-index: 1;
+}
+
+/* =========================================================
+   YOLO DETECTION CANVAS
+   ========================================================= */
+
+#detectionCanvas {
+    position: absolute;
+
+    top: 0;
+    left: 0;
+
+    width: 100%;
+    height: 100%;
+
+    z-index: 5;
+
+    pointer-events: none;
+
+    display: block;
+}
+
+/* =========================================================
+   CAMERA HEADER
+   ========================================================= */
+
+.camera-header {
+    position: absolute;
+
+    top: 18px;
+    left: 25px;
+    right: 25px;
+
+    z-index: 10;
+
+    display: flex;
+    align-items: center;
+
+    font-size: 18px;
+    font-weight: bold;
+
+    pointer-events: none;
+}
+
+.live-dot {
+    width: 20px;
+    height: 20px;
+
+    background: #13e34f;
+
+    border-radius: 50%;
+
+    margin-right: 12px;
+
+    box-shadow: 0 0 12px rgba(19, 227, 79, 0.7);
+}
+
+.fps {
+    margin-left: auto;
+}
+
+/* =========================================================
+   CAMERA PLACEHOLDER
+   ========================================================= */
+
+#camera-placeholder {
+    position: absolute;
+
+    inset: 0;
+
+    z-index: 3;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+    justify-content: center;
+
+    color: #7592a8;
+
+    font-size: 55px;
+
+    background: #020b12;
+}
+
+#camera-placeholder p {
+    font-size: 18px;
+    margin-top: 15px;
+}
+
+/* =========================================================
+   FORWARD PATH
+   ========================================================= */
+
+/* =========================================================
+   DYNAMIC FORWARD PATH
+   ========================================================= */
+
+#forwardPathCanvas {
+    position: absolute;
+
+    top: 0;
+    left: 0;
+
+    width: 100%;
+    height: 100%;
+
+    z-index: 4;
+
+    pointer-events: none;
+
+    display: block;
+}
+/* =========================================================
+   CAMERA CONTROLS
+   ========================================================= */
+
+.camera-controls {
+    display: grid;
+
+    grid-template-columns:
+        1.5fr
+        0.8fr
+        1.1fr;
+
+    gap: 18px;
+
+    margin-top: 18px;
+}
+
+.camera-controls button {
+    padding: 20px;
+
+    border-radius: 15px;
+
+    color: white;
+
+    font-size: 19px;
+    font-weight: bold;
+
+    cursor: pointer;
+
+    transition:
+        transform 0.15s ease,
+        filter 0.15s ease;
+}
+
+.camera-controls button:hover {
+    filter: brightness(1.12);
+    transform: translateY(-1px);
+}
+
+.camera-controls button:active {
+    transform: translateY(1px);
+}
+
+.start-btn {
+    background: #14a94b;
+    border: 2px solid #26ed68;
+}
+
+.stop-btn {
+    background: #9d1717;
+    border: 2px solid #ff4141;
+}
+
+.switch-btn {
+    background: #0b2942;
+    border: 2px solid #21618e;
+}
+
+/* =========================================================
+   VOICE MESSAGE
+   ========================================================= */
+
+.voice-message {
+    margin-top: 18px;
+
+    border: 2px solid #16496d;
+    border-radius: 15px;
+
+    padding: 17px 25px;
+
+    display: flex;
+    align-items: center;
+
+    gap: 20px;
+
+    background: #061b2b;
+
+    min-height: 60px;
+}
+
+.speaker {
+    font-size: 22px;
+}
+
+.voice-message #voiceText {
+    color: #39f56a;
+
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.time {
+    margin-left: auto;
+
+    color: #87a1b6;
+
+    white-space: nowrap;
+}
+
+/* =========================================================
+   RIGHT PANEL
+   ========================================================= */
+
+.right-panel {
+    display: flex;
+    flex-direction: column;
+
+    gap: 15px;
+
+    min-width: 0;
+}
+
+/* =========================================================
+   CARDS
+   ========================================================= */
+
+.warning-card,
+.status-card,
+.summary-card,
+.voice-card {
+    border-radius: 18px;
+
+    padding: 20px;
+
+    background: #071b2b;
+
+    border: 2px solid #174c70;
+
+    transition:
+        border-color 0.2s ease,
+        background 0.2s ease;
+}
+
+/* =========================================================
+   WARNING CARD
+   ========================================================= */
+
+.warning-card {
+    border-color: #ff3636;
+
+    background:
+        linear-gradient(
+            135deg,
+            #210b12,
+            #100d16
+        );
+}
+
+.warning-card h2 {
+    color: #ff4b4b;
+
+    font-size: 25px;
+
+    margin-bottom: 18px;
+}
+
+.warning-info p {
+    display: flex;
+
+    justify-content: space-between;
+
+    margin: 12px 0;
+
+    color: #c4d1dc;
+}
+
+.warning-info strong {
+    color: white;
+}
+
+.warning-card hr {
+    border: none;
+
+    border-top: 1px solid #493238;
+
+    margin: 18px 0;
+}
+
+.action-label {
+    color: #bfcbd5;
+
+    margin-bottom: 10px;
+}
+
+.move-left {
+    font-size: 25px !important;
+}
+
+/* =========================================================
+   STATUS CARD
+   ========================================================= */
+
+.status-card {
+    border-color: #0ab84b;
+}
+
+.status-card p {
+    text-align: center;
+
+    margin-bottom: 12px;
+}
+
+.status-card h2 {
+    color: #40ed70;
+
+    font-size: 20px;
+
+    text-align: center;
+}
+
+.status-card span {
+    display: block;
+
+    text-align: center;
+
+    margin-top: 8px;
+
+    color: #d1dbe2;
+}
+
+/* =========================================================
+   DETECTION SUMMARY
+   ========================================================= */
+
+.summary-card h2 {
+    font-size: 20px;
+
+    margin-bottom: 15px;
+}
+
+.summary-row {
+    display: flex;
+
+    justify-content: space-between;
+
+    padding: 11px 0;
+
+    border-bottom: 1px solid #153449;
+
+    color: #c3d2df;
+}
+
+.summary-row:last-child {
+    border-bottom: none;
+}
+
+.summary-row strong {
+    color: white;
+}
+
+/* =========================================================
+   VOICE ALERT CARD
+   ========================================================= */
+
+.voice-header {
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+}
+
+.voice-header h2 {
+    font-size: 20px;
+}
+
+.voice-card select {
+    width: 100%;
+
+    margin-top: 18px;
+
+    padding: 13px;
+
+    border-radius: 10px;
+
+    background: #0a2235;
+
+    color: white;
+
+    border: 1px solid #275575;
+
+    font-size: 15px;
+}
+
+/* =========================================================
+   TOGGLE
+   ========================================================= */
+
+.toggle input {
+    display: none;
+}
+
+.toggle span {
+    display: block;
+
+    width: 55px;
+    height: 30px;
+
+    border-radius: 20px;
+
+    background: #19bd4e;
+
+    position: relative;
+
+    cursor: pointer;
+}
+
+.toggle span::after {
+    content: "";
+
+    position: absolute;
+
+    width: 24px;
+    height: 24px;
+
+    background: white;
+
+    border-radius: 50%;
+
+    top: 3px;
+    right: 3px;
+
+    transition: 0.2s;
+}
+
+.toggle input:not(:checked) + span {
+    background: #3b5263;
+}
+
+.toggle input:not(:checked) + span::after {
+    right: 28px;
+}
+
+/* =========================================================
+   RESPONSIVE - TABLET
+   ========================================================= */
+
+@media (max-width: 1200px) {
+
+    .tagline {
+        font-size: 15px;
+    }
+
+    .main-content {
+        grid-template-columns:
+            minmax(500px, 1fr)
+            350px;
+    }
+
+    .camera-container {
+        height: 520px;
+    }
+}
+
+/* =========================================================
+   RESPONSIVE - SMALL TABLET
+   ========================================================= */
+
+@media (max-width: 1000px) {
+
+    .tagline {
+        display: none;
+    }
+
+    .main-content {
+        grid-template-columns: 1fr;
+    }
+
+    .right-panel {
+        display: grid;
+
+        grid-template-columns:
+            1fr
+            1fr;
+    }
+
+    .camera-container {
+        height: 550px;
+    }
+}
+
+/* =========================================================
+   RESPONSIVE - MOBILE
+   ========================================================= */
+
+@media (max-width: 700px) {
+
+    .header {
+        height: auto;
+
+        padding: 15px 20px;
+    }
+
+    .logo-section h1 {
+        font-size: 28px;
+
+        letter-spacing: 2px;
+    }
+
+    .logo-section p {
+        font-size: 12px;
+    }
+
+    .logo {
+        font-size: 35px;
+    }
+
+    .settings-btn {
+        padding: 10px 14px;
+
+        font-size: 14px;
+    }
+
+    .sidebar {
+        display: none;
+    }
+
+    .main-content {
+        padding: 10px;
+
+        display: block;
+    }
+
+    .camera-container {
+        height: 430px;
+
+        border-radius: 14px;
+    }
+
+    .camera-controls {
+        grid-template-columns: 1fr;
+    }
+
+    .right-panel {
+        display: flex;
+
+        margin-top: 15px;
+    }
+
+    .voice-message {
+        padding: 14px;
+
+        font-size: 14px;
+    }
+
+    .voice-message #voiceText {
+        font-size: 14px;
+    }
+}

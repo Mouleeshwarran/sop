@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>R.A.H.A.T - Assistive Navigation</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- ================= HEADER ================= -->
+
+    <header class="header">
+
+        <div class="logo-section">
+
+            <div class="logo">🛣️</div>
+
+            <div>
+                <h1>R.A.H.A.T</h1>
+                <p>
+                    Real-time Assistive Hub for Accessible Travel
+                </p>
+            </div>
+
+        </div>
+
+
+        <div class="tagline">
+            See the Road
+            &nbsp; • &nbsp;
+            Sense the Risks
+            &nbsp; • &nbsp;
+            Navigate with Confidence
+        </div>
+
+
+        <button class="settings-btn">
+            ⚙️ Settings
+        </button>
+
+    </header>
+
+
+
+    <!-- ================= APPLICATION ================= -->
+
+    <div class="app-container">
+
+
+        <!-- ================= SIDEBAR ================= -->
+
+        <aside class="sidebar">
+
+            <button class="nav-item active">
+                🏠
+                <span>Navigation</span>
+            </button>
+
+
+            <button class="nav-item">
+                🕘
+                <span>History</span>
+            </button>
+
+
+            <button class="nav-item">
+                📊
+                <span>Statistics</span>
+            </button>
+
+
+            <button class="nav-item">
+                ℹ️
+                <span>About</span>
+            </button>
+
+
+            <div class="sidebar-quote">
+
+                “Technology<br>
+                for a more<br>
+                inclusive<br>
+                tomorrow.”
+
+            </div>
+
+        </aside>
+
+
+
+        <!-- ================= MAIN CONTENT ================= -->
+
+        <main class="main-content">
+
+
+            <!-- ================= CAMERA SECTION ================= -->
+
+            <section class="camera-section">
+
+
+                <!-- CAMERA HEADER -->
+
+                <div class="camera-header">
+
+                    <span class="live-dot"></span>
+
+                    <span>
+                        Live Camera
+                    </span>
+
+
+                    <span class="fps">
+
+                        FPS:
+                        <strong id="fps">
+                            0
+                        </strong>
+
+                    </span>
+
+                </div>
+
+
+
+                <!-- CAMERA -->
+
+                <div class="camera-container">
+
+
+                    <!-- REAL CAMERA VIDEO -->
+
+                    <video
+                        id="camera"
+                        autoplay
+                        playsinline>
+                    </video>
+
+
+                    <!-- YOLO DETECTION OVERLAY -->
+
+                    <canvas
+                        id="detectionCanvas">
+                    </canvas>
+
+
+                    <!-- CAMERA PLACEHOLDER -->
+
+                    <div id="camera-placeholder">
+
+                        📷
+
+                        <p>
+                            Camera not started
+                        </p>
+
+                    </div>
+
+
+                    <!-- FORWARD PATH -->
+
+                    <canvas
+    id="forwardPathCanvas">
+</canvas>
+
+                </div>
+
+
+
+                <!-- ================= CAMERA CONTROLS ================= -->
+
+                <div class="camera-controls">
+
+
+                    <button
+                        id="startBtn"
+                        class="start-btn">
+
+                        ▶ Start Navigation
+
+                    </button>
+
+
+                    <button
+                        id="stopBtn"
+                        class="stop-btn">
+
+                        ■ Stop
+
+                    </button>
+
+
+                    <button
+                        id="switchBtn"
+                        class="switch-btn">
+
+                        📷 Switch Camera
+
+                    </button>
+
+                </div>
+
+
+
+                <!-- ================= VOICE MESSAGE ================= -->
+
+                <div class="voice-message">
+
+
+                    <span class="speaker">
+                        🔊
+                    </span>
+
+
+                    <span id="voiceText">
+
+                        Waiting to start navigation...
+
+                    </span>
+
+
+                    <span
+                        class="time"
+                        id="alertTime">
+
+                        --:--:--
+
+                    </span>
+
+                </div>
+
+
+            </section>
+
+
+
+            <!-- ================= RIGHT PANEL ================= -->
+
+            <aside class="right-panel">
+
+
+                <!-- ================= WARNING CARD ================= -->
+
+                <div
+                    id="warningCard"
+                    class="warning-card">
+
+
+                    <h2 id="warningTitle">
+
+                        ⚠️ NO OBSTACLE
+
+                    </h2>
+
+
+                    <div class="warning-info">
+
+
+                        <p>
+
+                            <span>
+                                Distance
+                            </span>
+
+                            <strong id="warningDistance">
+                                --
+                            </strong>
+
+                        </p>
+
+
+                        <p>
+
+                            <span>
+                                Direction
+                            </span>
+
+                            <strong id="warningDirection">
+                                --
+                            </strong>
+
+                        </p>
+
+
+                        <p>
+
+                            <span>
+                                Confidence
+                            </span>
+
+                            <strong id="warningConfidence">
+                                --
+                            </strong>
+
+                        </p>
+
+
+                    </div>
+
+
+                    <hr>
+
+
+                    <p class="action-label">
+
+                        Suggested Action
+
+                    </p>
+
+
+                    <h2
+                        id="suggestedAction"
+                        class="move-left">
+
+                        PATH CLEAR
+
+                    </h2>
+
+                </div>
+
+
+
+                <!-- ================= NAVIGATION STATUS ================= -->
+
+                <div
+                    id="statusCard"
+                    class="status-card">
+
+
+                    <p>
+                        Navigation Status
+                    </p>
+
+
+                    <h2 id="navigationStatus">
+
+                        🛣️ PATH CLEAR
+
+                    </h2>
+
+
+                    <span id="navigationMessage">
+
+                        Safe to proceed
+
+                    </span>
+
+                </div>
+
+
+
+                <!-- ================= DETECTION SUMMARY ================= -->
+
+                <div class="summary-card">
+
+
+                    <h2>
+                        📊 Detection Summary
+                    </h2>
+
+
+                    <div class="summary-row">
+
+                        <span>
+                            🚗 Vehicles
+                        </span>
+
+                        <strong id="vehicles">
+                            0
+                        </strong>
+
+                    </div>
+
+
+                    <div class="summary-row">
+
+                        <span>
+                            ⭕ Potholes
+                        </span>
+
+                        <strong id="potholes">
+                            0
+                        </strong>
+
+                    </div>
+
+
+                    <div class="summary-row">
+
+                        <span>
+                            🚶 Pedestrians
+                        </span>
+
+                        <strong id="pedestrians">
+                            0
+                        </strong>
+
+                    </div>
+
+
+                    <div class="summary-row">
+
+                        <span>
+                            🚲 Bicycles
+                        </span>
+
+                        <strong id="bicycles">
+                            0
+                        </strong>
+
+                    </div>
+
+
+                    <div class="summary-row">
+
+                        <span>
+                            ⚡ FPS
+                        </span>
+
+                        <strong id="summaryFps">
+                            0
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- ================= VOICE ALERTS ================= -->
+
+                <div class="voice-card">
+
+
+                    <div class="voice-header">
+
+
+                        <h2>
+                            🔊 Voice Alerts
+                        </h2>
+
+
+                        <label class="toggle">
+
+                            <input
+                                id="voiceToggle"
+                                type="checkbox"
+                                checked>
+
+                            <span></span>
+
+                        </label>
+
+                    </div>
+
+
+
+                    <select id="languageSelect">
+
+                        <option value="en">
+                            English (Default)
+                        </option>
+
+                        <option value="ta">
+                            Tamil
+                        </option>
+
+                        <option value="hi">
+                            Hindi
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+            </aside>
+
+
+        </main>
+
+
+    </div>
+
+
+
+    <!-- ================= JAVASCRIPT ================= -->
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>
