@@ -1,7 +1,3 @@
-// =========================================================
-// R.A.H.A.T - REAL-TIME ASSISTIVE NAVIGATION
-// =========================================================
-
 const video = document.getElementById("camera");
 const placeholder = document.getElementById("camera-placeholder");
 
@@ -40,7 +36,13 @@ let lastSpokenInstruction = "";
 let lastSpokenTime = 0;
 
 const VOICE_COOLDOWN = 2500;
-const DETECTION_INTERVAL = 120;
+
+// Adaptive interval: starts at 120ms, then adjusts itself
+// based on how long the backend actually takes to respond.
+// This is the FPS/latency optimization step from the pipeline.
+const MIN_DETECTION_INTERVAL = 60;
+const MAX_DETECTION_INTERVAL = 500;
+let currentDetectionInterval = 120;
 
 
 // =========================================================
@@ -262,10 +264,19 @@ async function detectionLoop() {
 
         detectionInProgress = true;
 
+        const requestStart =
+            performance.now();
+
         try {
 
             const result =
                 await sendFrameToYOLO();
+
+
+            const latency =
+                performance.now() - requestStart;
+
+            updateAdaptiveInterval(latency);
 
 
             if (
@@ -293,6 +304,14 @@ async function detectionLoop() {
                 error
             );
 
+            // Backend struggling / network issue —
+            // back off so we don't flood it with requests.
+            currentDetectionInterval =
+                Math.min(
+                    currentDetectionInterval * 1.5,
+                    MAX_DETECTION_INTERVAL
+                );
+
         } finally {
 
             detectionInProgress = false;
@@ -304,9 +323,38 @@ async function detectionLoop() {
 
         setTimeout(
             detectionLoop,
-            DETECTION_INTERVAL
+            currentDetectionInterval
         );
     }
+}
+
+
+// =========================================================
+// ADAPTIVE INTERVAL (FPS / LATENCY OPTIMIZATION)
+// =========================================================
+//
+// Instead of a fixed 120ms timer, the gap between frames
+// now tracks how long the backend actually took to respond.
+//
+// Fast backend / good network  -> shorter interval, higher FPS
+// Slow backend / weak network  -> longer interval, no frame pile-up
+// =========================================================
+
+function updateAdaptiveInterval(latencyMs) {
+
+    // Aim to send the next frame a little after the
+    // previous one finished, not before.
+    const target =
+        latencyMs * 1.1;
+
+    currentDetectionInterval =
+        Math.min(
+            Math.max(
+                target,
+                MIN_DETECTION_INTERVAL
+            ),
+            MAX_DETECTION_INTERVAL
+        );
 }
 
 
@@ -856,6 +904,27 @@ function updateNavigation(
             new Date().toLocaleTimeString();
 
 
+        // Speak "path clear" too, but only once when we
+        // switch INTO the clear state (not every frame).
+        if (
+            lastInstruction !== "PATH CLEAR"
+        ) {
+
+            const language =
+                document.getElementById(
+                    "languageSelect"
+                );
+
+            speakNavigation(
+                "PATH CLEAR",
+                language ? language.value : "en"
+            );
+
+            lastInstruction =
+                "PATH CLEAR";
+        }
+
+
         return;
     }
 
@@ -912,8 +981,16 @@ if (
     alertTime.textContent =
         new Date().toLocaleTimeString();
 
+    // Pass the currently selected language so the
+    // spoken message comes out in Tamil / Hindi / English.
+    const language =
+        document.getElementById(
+            "languageSelect"
+        );
+
     speakNavigation(
-        instruction
+        instruction,
+        language ? language.value : "en"
     );
 
     lastInstruction =
@@ -1253,7 +1330,7 @@ function clearPathCanvas() {
 // VOICE NAVIGATION
 // =========================================================
 
-function speakNavigation(instruction) {
+function speakNavigation(instruction, lang) {
 
     const voiceToggle =
         document.getElementById(
@@ -1298,9 +1375,23 @@ function speakNavigation(instruction) {
     window.speechSynthesis.cancel();
 
 
+    const language =
+        lang ||
+        (
+            document.getElementById(
+                "languageSelect"
+            ) ?
+            document.getElementById(
+                "languageSelect"
+            ).value :
+            "en"
+        );
+
+
     const message =
         createVoiceMessage(
-            instruction
+            instruction,
+            language
         );
 
 
@@ -1310,23 +1401,15 @@ function speakNavigation(instruction) {
         );
 
 
-    const language =
-        document.getElementById(
-            "languageSelect"
-        );
-
-
     if (
-        language &&
-        language.value === "ta"
+        language === "ta"
     ) {
 
         utterance.lang =
             "ta-IN";
 
     } else if (
-        language &&
-        language.value === "hi"
+        language === "hi"
     ) {
 
         utterance.lang =
@@ -1363,40 +1446,58 @@ function speakNavigation(instruction) {
 
 
 // =========================================================
-// NATURAL VOICE MESSAGE
+// NATURAL VOICE MESSAGE (English / Tamil / Hindi)
 // =========================================================
 
+const VOICE_MESSAGES = {
+
+    en: {
+        "PATH CLEAR": "Path clear. Safe to proceed.",
+        "SLOW DOWN": "Obstacle ahead. Slow down.",
+        "MOVE LEFT": "Obstacle ahead. Move left.",
+        "MOVE RIGHT": "Obstacle ahead. Move right.",
+        "KEEP LEFT": "Obstacle on the right. Keep left.",
+        "KEEP RIGHT": "Obstacle on the left. Keep right.",
+        "WAIT / STOP": "Obstacle ahead. Wait. Stop.",
+        "PROCEED WITH CAUTION": "Obstacles nearby. Proceed with caution."
+    },
+
+    ta: {
+        "PATH CLEAR": "வழி தெளிவாக உள்ளது. பாதுகாப்பாக செல்லலாம்.",
+        "SLOW DOWN": "முன்னால் தடை உள்ளது. மெதுவாக செல்லுங்கள்.",
+        "MOVE LEFT": "முன்னால் தடை உள்ளது. இடதுபுறம் நகருங்கள்.",
+        "MOVE RIGHT": "முன்னால் தடை உள்ளது. வலதுபுறம் நகருங்கள்.",
+        "KEEP LEFT": "வலதுபுறம் தடை உள்ளது. இடதுபுறமாக இருங்கள்.",
+        "KEEP RIGHT": "இடதுபுறம் தடை உள்ளது. வலதுபுறமாக இருங்கள்.",
+        "WAIT / STOP": "முன்னால் தடை உள்ளது. நில்லுங்கள்.",
+        "PROCEED WITH CAUTION": "அருகில் தடைகள் உள்ளன. கவனமாக செல்லுங்கள்."
+    },
+
+    hi: {
+        "PATH CLEAR": "रास्ता साफ़ है। आगे बढ़ सकते हैं।",
+        "SLOW DOWN": "आगे बाधा है। धीरे चलें।",
+        "MOVE LEFT": "आगे बाधा है। बाएं मुड़ें।",
+        "MOVE RIGHT": "आगे बाधा है। दाएं मुड़ें।",
+        "KEEP LEFT": "दाईं ओर बाधा है। बाईं ओर रहें।",
+        "KEEP RIGHT": "बाईं ओर बाधा है। दाईं ओर रहें।",
+        "WAIT / STOP": "आगे बाधा है। रुकें।",
+        "PROCEED WITH CAUTION": "आस-पास बाधाएं हैं। सावधानी से चलें।"
+    }
+
+};
+
 function createVoiceMessage(
-    instruction
+    instruction,
+    lang
 ) {
 
-    switch (instruction) {
+    const dictionary =
+        VOICE_MESSAGES[lang] ||
+        VOICE_MESSAGES.en;
 
-        case "PATH CLEAR":
-            return "Path clear. Safe to proceed.";
-
-        case "SLOW DOWN":
-            return "Obstacle ahead. Slow down.";
-
-        case "MOVE LEFT":
-            return "Obstacle ahead. Move left.";
-
-        case "MOVE RIGHT":
-            return "Obstacle ahead. Move right.";
-
-        case "KEEP LEFT":
-            return "Obstacle on the right. Keep left.";
-
-        case "KEEP RIGHT":
-            return "Obstacle on the left. Keep right.";
-
-        case "WAIT / STOP":
-            return "Obstacle ahead. Wait. Stop.";
-
-        case "PROCEED WITH CAUTION":
-            return "Obstacles nearby. Proceed with caution.";
-
-        default:
-            return instruction;
-    }
+    return (
+        dictionary[instruction] ||
+        VOICE_MESSAGES.en[instruction] ||
+        instruction
+    );
 }
