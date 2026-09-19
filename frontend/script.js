@@ -917,7 +917,7 @@ function updateNavigation(
 
             speakNavigation(
                 "PATH CLEAR",
-                language ? language.value : "en"
+                language ? language.value : "en-IN"
             );
 
             lastInstruction =
@@ -971,31 +971,31 @@ function updateNavigation(
     const instruction =
         navigation.instruction;
 
-if (
-    instruction !== lastInstruction
-) {
+    if (
+        instruction !== lastInstruction
+    ) {
 
-    voiceText.textContent =
-        `⚠️ ${instruction}`;
+        voiceText.textContent =
+            `⚠️ ${instruction}`;
 
-    alertTime.textContent =
-        new Date().toLocaleTimeString();
+        alertTime.textContent =
+            new Date().toLocaleTimeString();
 
-    // Pass the currently selected language so the
-    // spoken message comes out in Tamil / Hindi / English.
-    const language =
-        document.getElementById(
-            "languageSelect"
+        // Pass the currently selected language so the
+        // spoken message comes out in Tamil / Hindi / English.
+        const language =
+            document.getElementById(
+                "languageSelect"
+            );
+
+        speakNavigation(
+            instruction,
+            language ? language.value : "en-IN"
         );
 
-    speakNavigation(
-        instruction,
-        language ? language.value : "en"
-    );
-
-    lastInstruction =
-        instruction;
-}
+        lastInstruction =
+            instruction;
+    }
 }
 
 
@@ -1326,6 +1326,7 @@ function clearPathCanvas() {
         pathCanvas.height
     );
 }
+
 // =========================================================
 // VOICE NAVIGATION
 // =========================================================
@@ -1333,115 +1334,70 @@ function clearPathCanvas() {
 function speakNavigation(instruction, lang) {
 
     const voiceToggle =
-        document.getElementById(
-            "voiceToggle"
-        );
+        document.getElementById("voiceToggle");
 
     // Voice alerts disabled
-    if (
-        voiceToggle &&
-        !voiceToggle.checked
-    ) {
+    if (voiceToggle && !voiceToggle.checked) {
         return;
     }
 
-
-    if (
-        !("speechSynthesis" in window)
-    ) {
-        console.warn(
-            "Speech synthesis is not supported."
-        );
-
+    if (!("speechSynthesis" in window)) {
+        console.warn("Speech synthesis is not supported.");
         return;
     }
 
-
-    const now =
-        Date.now();
-
+    const now = Date.now();
 
     // Prevent repeated announcements
     if (
         instruction === lastSpokenInstruction &&
-        now - lastSpokenTime <
-        VOICE_COOLDOWN
+        now - lastSpokenTime < VOICE_COOLDOWN
     ) {
         return;
     }
 
-
     // Stop previous speech
     window.speechSynthesis.cancel();
 
-
-    const language =
+    const selectedLanguage =
         lang ||
         (
-            document.getElementById(
-                "languageSelect"
-            ) ?
-            document.getElementById(
-                "languageSelect"
-            ).value :
-            "en"
+            document.getElementById("languageSelect")
+                ? document.getElementById("languageSelect").value
+                : "en-IN"
         );
 
+    // The <select> gives values like "en-IN" / "ta-IN" / "hi-IN".
+    // The dictionary keys are just "en" / "ta" / "hi", so split it here.
+    const langCode = selectedLanguage.split("-")[0];
 
     const message =
-        createVoiceMessage(
-            instruction,
-            language
-        );
-
+        createVoiceMessage(instruction, langCode);
 
     const utterance =
-        new SpeechSynthesisUtterance(
-            message
-        );
+        new SpeechSynthesisUtterance(message);
 
+    if (langCode === "ta") {
 
-    if (
-        language === "ta"
-    ) {
+        utterance.lang = "ta-IN";
 
-        utterance.lang =
-            "ta-IN";
+    } else if (langCode === "hi") {
 
-    } else if (
-        language === "hi"
-    ) {
-
-        utterance.lang =
-            "hi-IN";
+        utterance.lang = "hi-IN";
 
     } else {
 
-        utterance.lang =
-            "en-IN";
+        utterance.lang = "en-IN";
     }
 
+    utterance.rate = 0.95;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
 
-    utterance.rate =
-        0.95;
+    window.speechSynthesis.speak(utterance);
 
-    utterance.pitch =
-        1.0;
-
-    utterance.volume =
-        1.0;
-
-
-    window.speechSynthesis.speak(
-        utterance
-    );
-
-
-    lastSpokenInstruction =
-        instruction;
-
-    lastSpokenTime =
-        now;
+    lastSpokenInstruction = instruction;
+    lastSpokenTime = now;
 }
 
 

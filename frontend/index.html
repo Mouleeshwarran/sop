@@ -1,91 +1,184 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>R.A.H.A.T - Assistive Navigation</title>
+    <title>R.A.H.A.T | Assistive Navigation</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap"
+        rel="stylesheet"
+    >
 
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
+<div class="background-grid"></div>
+
+<div class="app">
+
     <!-- ================= HEADER ================= -->
 
     <header class="header">
 
-        <div class="logo-section">
+        <div class="brand">
 
-            <div class="logo">🛣️</div>
+            <div class="brand-logo">
+                <span>RA</span>
+            </div>
 
             <div>
                 <h1>R.A.H.A.T</h1>
+
                 <p>
-                    Real-time Assistive Hub for Accessible Travel
+                    REAL-TIME ASSISTIVE HUB FOR ACCESSIBLE TRAVEL
                 </p>
             </div>
 
         </div>
 
 
-        <div class="tagline">
-            See the Road
-            &nbsp; • &nbsp;
-            Sense the Risks
-            &nbsp; • &nbsp;
-            Navigate with Confidence
+        <div class="header-info">
+
+            <div class="live-status">
+                <span></span>
+                LIVE MONITORING
+            </div>
+
+            <div class="system-time" id="systemTime">
+                SYSTEM ACTIVE
+            </div>
+
         </div>
-
-
-        <button class="settings-btn">
-            ⚙️ Settings
-        </button>
 
     </header>
 
 
+    <!-- ================= MAIN DASHBOARD ================= -->
 
-    <!-- ================= APPLICATION ================= -->
-
-    <div class="app-container">
-
-
-        <!-- ================= SIDEBAR ================= -->
-
-        <aside class="sidebar">
-
-            <button class="nav-item active">
-                🏠
-                <span>Navigation</span>
-            </button>
+    <main class="main-layout">
 
 
-            <button class="nav-item">
-                🕘
-                <span>History</span>
-            </button>
+        <!-- ================= LEFT : NAVIGATION ================= -->
+
+        <aside class="left-panel">
+
+            <div class="section-heading">
+                <span class="heading-icon">⌖</span>
+                NAVIGATION
+            </div>
 
 
-            <button class="nav-item">
-                📊
-                <span>Statistics</span>
-            </button>
+            <!-- Current Direction -->
+
+            <div class="navigation-main">
+
+                <div class="small-title">
+                    CURRENT DIRECTION
+                </div>
+
+                <div class="direction-display">
+
+                    <span class="direction-arrow">
+                        ↑
+                    </span>
+
+                    <div>
+                        <strong>FORWARD</strong>
+
+                        <small>
+                            Continue straight
+                        </small>
+                    </div>
+
+                </div>
+
+            </div>
 
 
-            <button class="nav-item">
-                ℹ️
-                <span>About</span>
-            </button>
+            <!-- Next Action -->
+
+            <div class="navigation-item">
+
+                <div class="item-icon blue">
+                    →
+                </div>
+
+                <div>
+                    <span>NEXT ACTION</span>
+
+                    <strong id="navigationStatus">
+                        PATH CLEAR
+                    </strong>
+                </div>
+
+            </div>
 
 
-            <div class="sidebar-quote">
+            <!-- Distance -->
 
-                “Technology<br>
-                for a more<br>
-                inclusive<br>
-                tomorrow.”
+            <div class="navigation-item">
+
+                <div class="item-icon green">
+                    ⌁
+                </div>
+
+                <div>
+                    <span>DISTANCE AHEAD</span>
+
+                    <strong id="navigationDistance">
+                        -- m
+                    </strong>
+                </div>
+
+            </div>
+
+
+            <!-- Guidance -->
+
+            <div class="navigation-message">
+
+                <span class="message-label">
+                    GUIDANCE
+                </span>
+
+                <p id="navigationMessage">
+                    Monitoring the path ahead for safe travel.
+                </p>
+
+            </div>
+
+
+            <!-- Path Status -->
+
+            <div class="path-status">
+
+                <div class="path-header">
+
+                    <span>
+                        PATH STATUS
+                    </span>
+
+                    <strong id="pathStatusText">
+                        CLEAR
+                    </strong>
+
+                </div>
+
+                <div class="path-line">
+                    <span></span>
+                </div>
+
+                <div class="path-labels">
+                    <span>YOU</span>
+                    <span>FORWARD</span>
+                </div>
 
             </div>
 
@@ -93,337 +186,439 @@
 
 
 
-        <!-- ================= MAIN CONTENT ================= -->
+        <!-- ================= CENTER : CAMERA ================= -->
 
-        <main class="main-content">
-
-
-            <!-- ================= CAMERA SECTION ================= -->
-
-            <section class="camera-section">
+        <section class="center-panel">
 
 
-                <!-- CAMERA HEADER -->
+            <!-- Camera Heading -->
 
-                <div class="camera-header">
+            <div class="camera-heading">
 
-                    <span class="live-dot"></span>
+                <div>
 
-                    <span>
-                        Live Camera
-                    </span>
+                    <div class="live-camera">
 
+                        <span></span>
 
-                    <span class="fps">
-
-                        FPS:
-                        <strong id="fps">
-                            0
-                        </strong>
-
-                    </span>
-
-                </div>
-
-
-
-                <!-- CAMERA -->
-
-                <div class="camera-container">
-
-
-                    <!-- REAL CAMERA VIDEO -->
-
-                    <video
-                        id="camera"
-                        autoplay
-                        playsinline>
-                    </video>
-
-
-                    <!-- YOLO DETECTION OVERLAY -->
-
-                    <canvas
-                        id="detectionCanvas">
-                    </canvas>
-
-
-                    <!-- CAMERA PLACEHOLDER -->
-
-                    <div id="camera-placeholder">
-
-                        📷
-
-                        <p>
-                            Camera not started
-                        </p>
+                        LIVE VISION
 
                     </div>
-
-
-                    <!-- FORWARD PATH -->
-
-                    <canvas
-    id="forwardPathCanvas">
-</canvas>
-
-                </div>
-
-
-
-                <!-- ================= CAMERA CONTROLS ================= -->
-
-                <div class="camera-controls">
-
-
-                    <button
-                        id="startBtn"
-                        class="start-btn">
-
-                        ▶ Start Navigation
-
-                    </button>
-
-
-                    <button
-                        id="stopBtn"
-                        class="stop-btn">
-
-                        ■ Stop
-
-                    </button>
-
-
-                    <button
-                        id="switchBtn"
-                        class="switch-btn">
-
-                        📷 Switch Camera
-
-                    </button>
-
-                </div>
-
-
-
-                <!-- ================= VOICE MESSAGE ================= -->
-
-                <div class="voice-message">
-
-
-                    <span class="speaker">
-                        🔊
-                    </span>
-
-
-                    <span id="voiceText">
-
-                        Waiting to start navigation...
-
-                    </span>
-
-
-                    <span
-                        class="time"
-                        id="alertTime">
-
-                        --:--:--
-
-                    </span>
-
-                </div>
-
-
-            </section>
-
-
-
-            <!-- ================= RIGHT PANEL ================= -->
-
-            <aside class="right-panel">
-
-
-                <!-- ================= WARNING CARD ================= -->
-
-                <div
-                    id="warningCard"
-                    class="warning-card">
-
-
-                    <h2 id="warningTitle">
-
-                        ⚠️ NO OBSTACLE
-
-                    </h2>
-
-
-                    <div class="warning-info">
-
-
-                        <p>
-
-                            <span>
-                                Distance
-                            </span>
-
-                            <strong id="warningDistance">
-                                --
-                            </strong>
-
-                        </p>
-
-
-                        <p>
-
-                            <span>
-                                Direction
-                            </span>
-
-                            <strong id="warningDirection">
-                                --
-                            </strong>
-
-                        </p>
-
-
-                        <p>
-
-                            <span>
-                                Confidence
-                            </span>
-
-                            <strong id="warningConfidence">
-                                --
-                            </strong>
-
-                        </p>
-
-
-                    </div>
-
-
-                    <hr>
-
-
-                    <p class="action-label">
-
-                        Suggested Action
-
-                    </p>
-
-
-                    <h2
-                        id="suggestedAction"
-                        class="move-left">
-
-                        PATH CLEAR
-
-                    </h2>
-
-                </div>
-
-
-
-                <!-- ================= NAVIGATION STATUS ================= -->
-
-                <div
-                    id="statusCard"
-                    class="status-card">
-
-
-                    <p>
-                        Navigation Status
-                    </p>
-
-
-                    <h2 id="navigationStatus">
-
-                        🛣️ PATH CLEAR
-
-                    </h2>
-
-
-                    <span id="navigationMessage">
-
-                        Safe to proceed
-
-                    </span>
-
-                </div>
-
-
-
-                <!-- ================= DETECTION SUMMARY ================= -->
-
-                <div class="summary-card">
-
 
                     <h2>
-                        📊 Detection Summary
+                        Road Awareness
                     </h2>
 
+                </div>
 
-                    <div class="summary-row">
+
+                <div class="fps">
+
+                    <span>
+                        PROCESSING
+                    </span>
+
+                    <strong id="fps">
+                        -- FPS
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- Camera -->
+
+            <div class="camera-container">
+
+                <video
+                    id="camera"
+                    autoplay
+                    playsinline>
+                </video>
+
+
+                <canvas id="detectionCanvas"></canvas>
+
+                <canvas id="forwardPathCanvas"></canvas>
+
+
+                <!-- Camera Corners -->
+
+                <div class="camera-corner top-left"></div>
+
+                <div class="camera-corner top-right"></div>
+
+                <div class="camera-corner bottom-left"></div>
+
+                <div class="camera-corner bottom-right"></div>
+
+
+                <!-- AI Status -->
+
+                <div class="camera-status">
+
+                    <span></span>
+
+                    AI VISION
+
+                </div>
+
+
+                <!-- Camera Placeholder -->
+
+                <div
+                    id="camera-placeholder"
+                    class="camera-placeholder">
+
+                    <div class="camera-icon">
+                        ◉
+                    </div>
+
+                    <h3>
+                        Camera Ready
+                    </h3>
+
+                    <p>
+                        Start the camera to begin<br>
+                        real-time obstacle detection
+                    </p>
+
+                </div>
+
+
+                <!-- Camera Information -->
+
+                <div class="camera-overlay-info">
+
+                    <div>
 
                         <span>
-                            🚗 Vehicles
+                            MODE
+                        </span>
+
+                        <strong>
+                            ROAD ANALYSIS
+                        </strong>
+
+                    </div>
+
+
+                    <div>
+
+                        <span>
+                            DETECTION
+                        </span>
+
+                        <strong>
+                            AI ENABLED
+                        </strong>
+
+                    </div>
+
+
+                    <div>
+
+                        <span>
+                            PATH
+                        </span>
+
+                        <strong>
+                            FORWARD
+                        </strong>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- Camera Controls -->
+
+            <div class="controls">
+
+                <button
+                    id="startBtn"
+                    class="btn start">
+
+                    <span>▶</span>
+
+                    START CAMERA
+
+                </button>
+
+
+                <button
+                    id="stopBtn"
+                    class="btn stop">
+
+                    <span>■</span>
+
+                    STOP
+
+                </button>
+
+
+                <button
+                    id="switchBtn"
+                    class="btn switch">
+
+                    <span>↻</span>
+
+                    SWITCH CAMERA
+
+                </button>
+
+            </div>
+
+
+
+            <!-- Voice Assistant -->
+
+            <div class="voice-alert">
+
+                <div class="voice-symbol">
+
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+
+                </div>
+
+
+                <div class="voice-text">
+
+                    <span>
+                        VOICE ASSISTANT
+                    </span>
+
+                    <strong id="voiceText">
+                        Waiting for camera detection...
+                    </strong>
+
+                </div>
+
+
+                <div
+                    class="alert-time"
+                    id="alertTime">
+
+                    --:--
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- ================= RIGHT : AI DETECTION ================= -->
+
+        <aside class="right-panel">
+
+
+            <div class="section-heading">
+
+                <span class="heading-icon">
+                    ◈
+                </span>
+
+                AI DETECTION
+
+            </div>
+
+
+
+            <!-- Active Warning -->
+
+            <div
+                id="warningCard"
+                class="warning-card">
+
+
+                <div class="warning-header">
+
+
+                    <div class="warning-symbol">
+                        !
+                    </div>
+
+
+                    <div>
+
+                        <span>
+                            ACTIVE WARNING
+                        </span>
+
+                        <h3 id="warningTitle">
+                            NO OBSTACLE DETECTED
+                        </h3>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="warning-distance">
+
+
+                    <div>
+
+                        <span>
+                            DISTANCE
+                        </span>
+
+                        <strong id="warningDistance">
+                            --
+                        </strong>
+
+                    </div>
+
+
+                    <div>
+
+                        <span>
+                            DIRECTION
+                        </span>
+
+                        <strong id="warningDirection">
+                            --
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="confidence">
+
+
+                    <div>
+
+                        <span>
+                            DETECTION CONFIDENCE
+                        </span>
+
+                        <strong id="warningConfidence">
+                            --%
+                        </strong>
+
+                    </div>
+
+
+                    <div class="confidence-track">
+
+                        <span></span>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="suggested-action">
+
+                    <span>
+                        RECOMMENDED ACTION
+                    </span>
+
+                    <p id="suggestedAction">
+                        Continue monitoring the road.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- Detected Objects -->
+
+            <div class="objects-card">
+
+
+                <div class="card-title">
+                    DETECTED OBJECTS
+                </div>
+
+
+                <div class="object-grid">
+
+
+                    <div class="object vehicle">
+
+                        <span class="object-icon">
+                            ▰
                         </span>
 
                         <strong id="vehicles">
-                            0
+                            00
                         </strong>
+
+                        <small>
+                            VEHICLES
+                        </small>
 
                     </div>
 
 
-                    <div class="summary-row">
 
-                        <span>
-                            ⭕ Potholes
-                        </span>
+                    <div class="object pedestrian">
 
-                        <strong id="potholes">
-                            0
-                        </strong>
-
-                    </div>
-
-
-                    <div class="summary-row">
-
-                        <span>
-                            🚶 Pedestrians
+                        <span class="object-icon">
+                            ●
                         </span>
 
                         <strong id="pedestrians">
-                            0
+                            00
                         </strong>
+
+                        <small>
+                            PEDESTRIANS
+                        </small>
 
                     </div>
 
 
-                    <div class="summary-row">
 
-                        <span>
-                            🚲 Bicycles
+                    <div class="object pothole">
+
+                        <span class="object-icon">
+                            ◆
+                        </span>
+
+                        <strong id="potholes">
+                            00
+                        </strong>
+
+                        <small>
+                            POTHOLES
+                        </small>
+
+                    </div>
+
+
+
+                    <div class="object bicycle">
+
+                        <span class="object-icon">
+                            ◎
                         </span>
 
                         <strong id="bicycles">
-                            0
+                            00
                         </strong>
 
-                    </div>
-
-
-                    <div class="summary-row">
-
-                        <span>
-                            ⚡ FPS
-                        </span>
-
-                        <strong id="summaryFps">
-                            0
-                        </strong>
+                        <small>
+                            BICYCLES
+                        </small>
 
                     </div>
 
@@ -431,67 +626,130 @@
 
 
 
-                <!-- ================= VOICE ALERTS ================= -->
+                <div class="processing">
 
-                <div class="voice-card">
+                    <span>
+                        PROCESSING SPEED
+                    </span>
+
+                    <strong id="summaryFps">
+                        -- FPS
+                    </strong>
+
+                </div>
+
+            </div>
 
 
-                    <div class="voice-header">
+
+            <!-- Voice Assistance -->
+
+            <div class="voice-settings">
 
 
-                        <h2>
-                            🔊 Voice Alerts
-                        </h2>
+                <div class="card-title">
+                    VOICE ASSISTANCE
+                </div>
 
 
-                        <label class="toggle">
 
-                            <input
-                                id="voiceToggle"
-                                type="checkbox"
-                                checked>
+                <div class="setting">
 
-                            <span></span>
 
-                        </label>
+                    <div>
+
+                        <span>
+                            VOICE ALERTS
+                        </span>
+
+                        <small>
+                            Speak detected hazards
+                        </small>
 
                     </div>
 
+
+                    <label class="toggle">
+
+                        <input
+                            type="checkbox"
+                            id="voiceToggle"
+                            checked>
+
+                        <span></span>
+
+                    </label>
+
+                </div>
+
+
+
+                <div class="setting">
+
+
+                    <div>
+
+                        <span>
+                            LANGUAGE
+                        </span>
+
+                        <small>
+                            Voice output language
+                        </small>
+
+                    </div>
 
 
                     <select id="languageSelect">
 
-                        <option value="en">
-                            English (Default)
+                        <option value="en-IN">
+                            English
                         </option>
 
-                        <option value="ta">
-                            Tamil
+                        <option value="ta-IN">
+                            தமிழ்
                         </option>
 
-                        <option value="hi">
-                            Hindi
+                        <option value="hi-IN">
+                            हिन्दी
                         </option>
 
                     </select>
 
                 </div>
 
+            </div>
 
-            </aside>
+        </aside>
 
-
-        </main>
-
-
-    </div>
+    </main>
 
 
 
-    <!-- ================= JAVASCRIPT ================= -->
+    <!-- ================= FOOTER ================= -->
 
-    <script src="script.js"></script>
+    <footer class="footer">
+
+        <div>
+
+            <span class="footer-dot"></span>
+
+            AI-assisted road monitoring
+
+        </div>
+
+
+        <p>
+            "Technology should make every journey more accessible."
+        </p>
+
+    </footer>
+
+</div>
+
+
+
+<script src="script.js"></script>
 
 </body>
-
 </html>
