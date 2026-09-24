@@ -35,12 +35,14 @@ let fpsStartTime = performance.now();
 let lastInstruction = "";
 let lastSpokenInstruction = "";
 let lastSpokenTime = 0;
+let lastSpokenLanguage = "";
 
 const VOICE_COOLDOWN = 2500;
 
 // Adaptive detection interval
 const MIN_DETECTION_INTERVAL = 60;
 const MAX_DETECTION_INTERVAL = 500;
+
 let currentDetectionInterval = 120;
 
 
@@ -54,11 +56,13 @@ async function startCamera() {
 
         cameraStream =
             await navigator.mediaDevices.getUserMedia({
+
                 video: {
                     facingMode: "environment",
                     width: { ideal: 1280 },
                     height: { ideal: 720 }
                 },
+
                 audio: false
             });
 
@@ -86,7 +90,10 @@ async function startCamera() {
 
     } catch (error) {
 
-        console.error("Camera error:", error);
+        console.error(
+            "Camera error:",
+            error
+        );
 
         voiceText.textContent =
             "Camera access denied or unavailable.";
@@ -112,8 +119,10 @@ function stopCamera() {
 
     latestDetections = [];
 
+    lastInstruction = "";
+    lastSpokenLanguage = "";
+
     clearCanvas();
-    clearPathCanvas();
 
     if (cameraStream) {
 
@@ -502,6 +511,7 @@ function drawDetections() {
 
 
     // Account for object-fit: cover
+
     const scale =
         Math.max(
             displayWidth / videoWidth,
@@ -582,7 +592,7 @@ function drawDetectionBox(
 ) {
 
     // RED = object is directly in forward path
-    // YELLOW = object is outside immediate path
+    // YELLOW = side object / outside immediate path
 
     const color =
         detection.in_forward_path
@@ -659,21 +669,18 @@ function drawDetectionBox(
 
 
     // -----------------------------------------------------
-    // SIZE + DISTANCE + DIRECTION
+    // Distance + direction + size
     // -----------------------------------------------------
 
-    const size =
-        detection.size || "Unknown";
+    const sizeLabel =
+        detection.size || "--";
 
-    const distance =
-        detection.distance || "Unknown";
-
-    const direction =
-        detection.direction || "Unknown";
+    const severityLabel =
+        detection.severity || "--";
 
 
     const info =
-        `${size} • ${distance} • ${direction}`;
+        `${detection.distance} • ${detection.direction} • ${sizeLabel}`;
 
 
     ctx.font =
@@ -705,6 +712,47 @@ function drawDetectionBox(
         x + 6,
         y + height + 16
     );
+
+
+    // -----------------------------------------------------
+    // Size + severity
+    // -----------------------------------------------------
+
+    const sizeSeverity =
+        `${sizeLabel} • ${severityLabel}`;
+
+
+    ctx.font =
+        "bold 12px Arial";
+
+
+    const sizeSeverityWidth =
+        ctx.measureText(
+            sizeSeverity
+        ).width;
+
+
+    ctx.fillStyle =
+        "rgba(0, 0, 0, 0.75)";
+
+
+    ctx.fillRect(
+        x,
+        y + height + 22,
+        sizeSeverityWidth + 12,
+        20
+    );
+
+
+    ctx.fillStyle =
+        "#ffffff";
+
+
+    ctx.fillText(
+        sizeSeverity,
+        x + 6,
+        y + height + 36
+    );
 }
 
 
@@ -716,6 +764,10 @@ function updateDashboard(
     detections,
     navigation
 ) {
+
+    // -----------------------------------------------------
+    // Object statistics
+    // -----------------------------------------------------
 
     const potholes =
         detections.filter(
@@ -780,8 +832,6 @@ function updateDashboard(
     ).textContent =
         detectionFPS;
 
-
-    // Navigation decision comes from backend
 
     if (navigation) {
 
@@ -850,9 +900,9 @@ function updateNavigation(
         );
 
 
-    // -----------------------------------------------------
+    // =====================================================
     // PATH CLEAR
-    // -----------------------------------------------------
+    // =====================================================
 
     if (!target) {
 
@@ -894,22 +944,35 @@ function updateNavigation(
             new Date().toLocaleTimeString();
 
 
-        if (
-            lastInstruction !== "PATH CLEAR"
-        ) {
+        const language =
+            document.getElementById(
+                "languageSelect"
+            );
 
-            const language =
-                document.getElementById(
-                    "languageSelect"
-                );
+
+        const selectedLanguage =
+            language
+                ? language.value
+                : "en-IN";
+
+
+        // Re-speak when the language changes
+        if (
+            lastInstruction !== "PATH CLEAR" ||
+            lastSpokenLanguage !== selectedLanguage
+        ) {
 
             speakNavigation(
                 "PATH CLEAR",
-                language ? language.value : "en"
+                selectedLanguage,
+                null
             );
 
             lastInstruction =
                 "PATH CLEAR";
+
+            lastSpokenLanguage =
+                selectedLanguage;
         }
 
 
@@ -917,9 +980,9 @@ function updateNavigation(
     }
 
 
-    // -----------------------------------------------------
+    // =====================================================
     // TARGET EXISTS
-    // -----------------------------------------------------
+    // =====================================================
 
     warningTitle.textContent =
         "⚠️ OBSTACLE DETECTED";
@@ -939,8 +1002,24 @@ function updateNavigation(
         )}%`;
 
 
+    // -----------------------------------------------------
+    // SIZE AND SEVERITY FROM BACKEND
+    // -----------------------------------------------------
+
+    const targetSize =
+        target.size || "UNKNOWN";
+
+
+    const targetSeverity =
+        target.severity || "UNKNOWN";
+
+
+    const sizeSeverityText =
+        `${targetSize} • ${targetSeverity}`;
+
+
     suggestedAction.textContent =
-        navigation.instruction;
+        `${navigation.instruction} • ${sizeSeverityText}`;
 
 
     navigationStatus.textContent =
@@ -951,86 +1030,74 @@ function updateNavigation(
         navigation.reason;
 
 
-    // -----------------------------------------------------
-    // FIND TARGET SIZE
-    // -----------------------------------------------------
-
-    let targetSize =
-        target.size || "Unknown";
-
-    let targetClass =
-        target.class ||
-        target.type ||
-        "Obstacle";
-
-
-    // If backend navigation target does not contain size,
-    // find the corresponding detection.
-
-    if (
-        targetSize === "Unknown" &&
-        latestDetections.length > 0
-    ) {
-
-        const matchingDetection =
-            latestDetections.find(
-                detection =>
-                    detection.class === target.class &&
-                    detection.direction === target.direction
-            );
-
-        if (matchingDetection) {
-
-            targetSize =
-                matchingDetection.size ||
-                "Unknown";
-
-            targetClass =
-                matchingDetection.class ||
-                targetClass;
-        }
-    }
-
-
-    // -----------------------------------------------------
+    // =====================================================
     // VOICE
-    // -----------------------------------------------------
+    // =====================================================
 
     const instruction =
         navigation.instruction;
 
 
-    const voiceKey =
-        `${targetSize}-${targetClass}-${instruction}`;
+    const language =
+        document.getElementById(
+            "languageSelect"
+        );
+
+
+    const selectedLanguage =
+        language
+            ? language.value
+            : "en-IN";
+
+
+    // Speak again if:
+    // 1. Navigation instruction changed
+    // OR
+    // 2. User changed language
+    // OR
+    // 3. Target size/severity changed
+
+    const currentVoiceKey =
+        `${instruction}|${target.class}|${target.size}|${target.severity}`;
+
+
+    const previousVoiceKey =
+        `${lastInstruction}|${window.lastVoiceClass || ""}|${window.lastVoiceSize || ""}|${window.lastVoiceSeverity || ""}`;
 
 
     if (
-        voiceKey !== lastInstruction
+        currentVoiceKey !== previousVoiceKey ||
+        selectedLanguage !== lastSpokenLanguage
     ) {
 
         voiceText.textContent =
-            `⚠️ ${targetSize} ${formatClassName(targetClass)}. ${instruction}`;
+            `⚠️ ${instruction}`;
 
         alertTime.textContent =
             new Date().toLocaleTimeString();
 
 
-        const language =
-            document.getElementById(
-                "languageSelect"
-            );
-
-
         speakNavigation(
             instruction,
-            language ? language.value : "en",
-            targetSize,
-            targetClass
+            selectedLanguage,
+            target
         );
 
 
         lastInstruction =
-            voiceKey;
+            instruction;
+
+        lastSpokenLanguage =
+            selectedLanguage;
+
+        window.lastVoiceClass =
+            target.class || target.type || "";
+
+        window.lastVoiceSize =
+            target.size || "";
+
+        window.lastVoiceSeverity =
+            target.severity || "";
     }
 }
 
@@ -1070,10 +1137,6 @@ function resetDashboard() {
         "summaryFps"
     ).textContent = "0";
 
-
-    lastInstruction = "";
-    lastSpokenInstruction = "";
-    lastSpokenTime = 0;
 
     updateClearState();
 }
@@ -1172,10 +1235,6 @@ function formatClassName(
     className
 ) {
 
-    if (!className) {
-        return "Obstacle";
-    }
-
     return className
         .charAt(0)
         .toUpperCase()
@@ -1230,12 +1289,18 @@ function drawForwardPath() {
     const height =
         pathCanvas.clientHeight;
 
+
     if (!width || !height) {
         return;
     }
 
-    pathCanvas.width = width;
-    pathCanvas.height = height;
+
+    pathCanvas.width =
+        width;
+
+    pathCanvas.height =
+        height;
+
 
     pathCtx.clearRect(
         0,
@@ -1291,25 +1356,23 @@ function drawForwardPath() {
     pathCtx.closePath();
 
 
-    // Transparent path region
-
     pathCtx.fillStyle =
         "rgba(40, 220, 90, 0.16)";
 
     pathCtx.fill();
 
 
-    // Path boundaries
-
     pathCtx.strokeStyle =
         "#45ff65";
 
-    pathCtx.lineWidth = 3;
+    pathCtx.lineWidth =
+        3;
 
     pathCtx.setLineDash([
         10,
         8
     ]);
+
 
     pathCtx.beginPath();
 
@@ -1338,8 +1401,6 @@ function drawForwardPath() {
     pathCtx.setLineDash([]);
 
 
-    // Label
-
     pathCtx.fillStyle =
         "#ffffff";
 
@@ -1348,6 +1409,7 @@ function drawForwardPath() {
 
     pathCtx.textAlign =
         "center";
+
 
     pathCtx.fillText(
         "FORWARD PATH",
@@ -1379,8 +1441,7 @@ function clearPathCanvas() {
 function speakNavigation(
     instruction,
     lang,
-    size = null,
-    objectClass = null
+    target = null
 ) {
 
     const voiceToggle =
@@ -1415,17 +1476,12 @@ function speakNavigation(
         Date.now();
 
 
-    // Include size and object in the
-    // repeated-message check.
-
-    const spokenKey =
-        `${size || ""}-${objectClass || ""}-${instruction}`;
-
+    // Prevent repeated announcements
 
     if (
-        spokenKey === lastSpokenInstruction &&
-        now - lastSpokenTime <
-        VOICE_COOLDOWN
+        instruction === lastSpokenInstruction &&
+        now - lastSpokenTime < VOICE_COOLDOWN &&
+        lang === lastSpokenLanguage
     ) {
         return;
     }
@@ -1436,25 +1492,31 @@ function speakNavigation(
     window.speechSynthesis.cancel();
 
 
-    const language =
+    const selectedLanguage =
         lang ||
         (
             document.getElementById(
                 "languageSelect"
-            ) ?
-            document.getElementById(
-                "languageSelect"
-            ).value :
-            "en"
+            )
+                ? document.getElementById(
+                    "languageSelect"
+                ).value
+                : "en-IN"
         );
+
+
+    // Convert en-IN / ta-IN / hi-IN
+    // into en / ta / hi
+
+    const langCode =
+        selectedLanguage.split("-")[0];
 
 
     const message =
         createVoiceMessage(
             instruction,
-            language,
-            size,
-            objectClass
+            langCode,
+            target
         );
 
 
@@ -1464,16 +1526,12 @@ function speakNavigation(
         );
 
 
-    if (
-        language === "ta"
-    ) {
+    if (langCode === "ta") {
 
         utterance.lang =
             "ta-IN";
 
-    } else if (
-        language === "hi"
-    ) {
+    } else if (langCode === "hi") {
 
         utterance.lang =
             "hi-IN";
@@ -1501,16 +1559,18 @@ function speakNavigation(
 
 
     lastSpokenInstruction =
-        spokenKey;
+        instruction;
 
     lastSpokenTime =
         now;
+
+    lastSpokenLanguage =
+        selectedLanguage;
 }
 
 
 // =========================================================
-// NATURAL VOICE MESSAGE
-// English / Tamil / Hindi
+// VOICE MESSAGES
 // =========================================================
 
 const VOICE_MESSAGES = {
@@ -1597,7 +1657,6 @@ const VOICE_MESSAGES = {
         "PROCEED WITH CAUTION":
             "आस-पास बाधाएं हैं। सावधानी से चलें।"
     }
-
 };
 
 
@@ -1608,27 +1667,8 @@ const VOICE_MESSAGES = {
 function createVoiceMessage(
     instruction,
     lang,
-    size = null,
-    objectClass = null
+    target = null
 ) {
-
-    // PATH CLEAR does not need size
-
-    if (
-        instruction === "PATH CLEAR"
-    ) {
-
-        const dictionary =
-            VOICE_MESSAGES[lang] ||
-            VOICE_MESSAGES.en;
-
-        return (
-            dictionary[instruction] ||
-            VOICE_MESSAGES.en[instruction] ||
-            instruction
-        );
-    }
-
 
     const dictionary =
         VOICE_MESSAGES[lang] ||
@@ -1641,131 +1681,374 @@ function createVoiceMessage(
         instruction;
 
 
-    // -----------------------------------------------------
-    // ENGLISH
-    // -----------------------------------------------------
+    // Path clear has no object/size/severity
 
-    if (
-        lang === "en" &&
-        size &&
-        objectClass
-    ) {
-
-        const objectName =
-            formatClassName(objectClass);
-
-
-        const action =
-            getEnglishAction(instruction);
-
-
-        return `${size} ${objectName} ahead. ${action}`;
+    if (!target) {
+        return baseMessage;
     }
 
 
-    // -----------------------------------------------------
-    // TAMIL
-    // -----------------------------------------------------
+    const size =
+        String(
+            target.size || ""
+        ).toUpperCase();
+
+
+    const severity =
+        String(
+            target.severity || ""
+        ).toUpperCase();
+
+
+    const objectName =
+        getVoiceObjectName(
+            target,
+            lang
+        );
+
 
     if (
-        lang === "ta" &&
-        size &&
-        objectClass
+        !size ||
+        size === "UNKNOWN"
     ) {
 
-        const sizeTamil = {
-
-            "Small":
-                "சிறிய",
-
-            "Medium":
-                "நடுத்தர",
-
-            "Large":
-                "பெரிய"
-        };
-
-
-        const tamilSize =
-            sizeTamil[size] ||
-            size;
-
-
-        return `${tamilSize} தடை முன்னால் உள்ளது. ${baseMessage}`;
+        return baseMessage;
     }
 
 
-    // -----------------------------------------------------
-    // HINDI
-    // -----------------------------------------------------
-
-    if (
-        lang === "hi" &&
-        size &&
-        objectClass
-    ) {
-
-        const sizeHindi = {
-
-            "Small":
-                "छोटी",
-
-            "Medium":
-                "मध्यम",
-
-            "Large":
-                "बड़ी"
-        };
+    const sizeText =
+        getVoiceSizeName(
+            size,
+            lang
+        );
 
 
-        const hindiSize =
-            sizeHindi[size] ||
-            size;
+    const severityText =
+        getVoiceSeverityName(
+            severity,
+            lang
+        );
 
 
-        return `${hindiSize} बाधा आगे है। ${baseMessage}`;
+    // Tamil
+
+    if (lang === "ta") {
+
+        return (
+            `${objectName} ${sizeText}. ` +
+            `${severityText}. ` +
+            `${baseMessage}`
+        );
     }
 
 
-    return baseMessage;
+    // Hindi
+
+    if (lang === "hi") {
+
+        return (
+            `${objectName} ${sizeText}। ` +
+            `${severityText}। ` +
+            `${baseMessage}`
+        );
+    }
+
+
+    // English
+
+    return (
+        `${sizeText} ${objectName}. ` +
+        `${severityText}. ` +
+        `${baseMessage}`
+    );
 }
 
 
 // =========================================================
-// ENGLISH ACTION
+// OBJECT NAME FOR VOICE
 // =========================================================
 
-function getEnglishAction(
-    instruction
+function getVoiceObjectName(
+    target,
+    lang
 ) {
 
-    const actions = {
+    const className =
+        String(
+            target.class ||
+            target.type ||
+            "obstacle"
+        ).toLowerCase();
 
-        "SLOW DOWN":
-            "Slow down.",
 
-        "MOVE LEFT":
-            "Move left.",
+    // Tamil
 
-        "MOVE RIGHT":
-            "Move right.",
+    if (lang === "ta") {
 
-        "KEEP LEFT":
-            "Keep left.",
+        const tamilNames = {
 
-        "KEEP RIGHT":
-            "Keep right.",
+            pothole:
+                "பள்ளம்",
 
-        "WAIT / STOP":
-            "Wait. Stop.",
+            person:
+                "நபர்",
 
-        "PROCEED WITH CAUTION":
-            "Proceed with caution."
+            bicycle:
+                "மிதிவண்டி",
+
+            car:
+                "கார்",
+
+            motorcycle:
+                "மோட்டார் சைக்கிள்",
+
+            bus:
+                "பேருந்து",
+
+            truck:
+                "லாரி",
+
+            obstacle:
+                "தடை"
+        };
+
+
+        return (
+            tamilNames[className] ||
+            "தடை"
+        );
+    }
+
+
+    // Hindi
+
+    if (lang === "hi") {
+
+        const hindiNames = {
+
+            pothole:
+                "गड्ढा",
+
+            person:
+                "व्यक्ति",
+
+            bicycle:
+                "साइकिल",
+
+            car:
+                "कार",
+
+            motorcycle:
+                "मोटरसाइकिल",
+
+            bus:
+                "बस",
+
+            truck:
+                "ट्रक",
+
+            obstacle:
+                "बाधा"
+        };
+
+
+        return (
+            hindiNames[className] ||
+            "बाधा"
+        );
+    }
+
+
+    // English
+
+    const englishNames = {
+
+        pothole:
+            "pothole",
+
+        person:
+            "person",
+
+        bicycle:
+            "bicycle",
+
+        car:
+            "car",
+
+        motorcycle:
+            "motorcycle",
+
+        bus:
+            "bus",
+
+        truck:
+            "truck",
+
+        obstacle:
+            "obstacle"
     };
 
 
     return (
-        actions[instruction] ||
-        instruction
+        englishNames[className] ||
+        "obstacle"
+    );
+}
+
+
+// =========================================================
+// SIZE VOICE NAME
+// =========================================================
+
+function getVoiceSizeName(
+    size,
+    lang
+) {
+
+    // Tamil
+
+    if (lang === "ta") {
+
+        const tamilSizes = {
+
+            SMALL:
+                "சிறிய அளவு",
+
+            MEDIUM:
+                "நடுத்தர அளவு",
+
+            LARGE:
+                "பெரிய அளவு"
+        };
+
+
+        return (
+            tamilSizes[size] ||
+            "அளவு தெரியவில்லை"
+        );
+    }
+
+
+    // Hindi
+
+    if (lang === "hi") {
+
+        const hindiSizes = {
+
+            SMALL:
+                "छोटा",
+
+            MEDIUM:
+                "मध्यम",
+
+            LARGE:
+                "बड़ा"
+        };
+
+
+        return (
+            hindiSizes[size] ||
+            "आकार अज्ञात"
+        );
+    }
+
+
+    // English
+
+    const englishSizes = {
+
+        SMALL:
+            "Small",
+
+        MEDIUM:
+            "Medium",
+
+        LARGE:
+            "Large"
+    };
+
+
+    return (
+        englishSizes[size] ||
+        "Unknown size"
+    );
+}
+
+
+// =========================================================
+// SEVERITY VOICE NAME
+// =========================================================
+
+function getVoiceSeverityName(
+    severity,
+    lang
+) {
+
+    // Tamil
+
+    if (lang === "ta") {
+
+        const tamilSeverity = {
+
+            LOW:
+                "குறைந்த ஆபத்து",
+
+            MODERATE:
+                "மிதமான ஆபத்து",
+
+            HIGH:
+                "அதிக ஆபத்து"
+        };
+
+
+        return (
+            tamilSeverity[severity] ||
+            "ஆபத்து தெரியவில்லை"
+        );
+    }
+
+
+    // Hindi
+
+    if (lang === "hi") {
+
+        const hindiSeverity = {
+
+            LOW:
+                "कम जोखिम",
+
+            MODERATE:
+                "मध्यम जोखिम",
+
+            HIGH:
+                "उच्च जोखिम"
+        };
+
+
+        return (
+            hindiSeverity[severity] ||
+            "जोखिम अज्ञात"
+        );
+    }
+
+
+    // English
+
+    const englishSeverity = {
+
+        LOW:
+            "Low severity",
+
+        MODERATE:
+            "Moderate severity",
+
+        HIGH:
+            "High severity"
+    };
+
+
+    return (
+        englishSeverity[severity] ||
+        "Unknown severity"
     );
 }
