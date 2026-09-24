@@ -26,8 +26,71 @@ obstacle_model = YOLO(str(OBSTACLE_MODEL_PATH))
 # =========================================================
 
 POTHOLE_CONFIDENCE = 0.60
-
 OBSTACLE_CONFIDENCE = 0.40
+
+
+# =========================================================
+# SIZE ESTIMATION SETTINGS
+# =========================================================
+#
+# Relative size is calculated using:
+#
+#     Relative Area =
+#     Bounding Box Area / Frame Area
+#
+# This is NOT the physical size in cm/meters.
+#
+# These values are initial configurable thresholds.
+# They can be calibrated later using test images/videos.
+# =========================================================
+
+SMALL_SIZE_THRESHOLD = 0.03
+LARGE_SIZE_THRESHOLD = 0.10
+
+
+def estimate_size(
+    x1,
+    y1,
+    x2,
+    y2,
+    frame_width,
+    frame_height
+):
+
+    box_width = max(
+        1,
+        x2 - x1
+    )
+
+    box_height = max(
+        1,
+        y2 - y1
+    )
+
+    box_area = (
+        box_width *
+        box_height
+    )
+
+    frame_area = (
+        frame_width *
+        frame_height
+    )
+
+    relative_area = (
+        box_area /
+        frame_area
+    )
+
+    if relative_area < SMALL_SIZE_THRESHOLD:
+
+        return "Small"
+
+    if relative_area < LARGE_SIZE_THRESHOLD:
+
+        return "Medium"
+
+    return "Large"
 
 
 # =========================================================
@@ -51,17 +114,26 @@ def estimate_distance(
     frame_height
 ):
 
-    box_height = max(1, y2 - y1)
+    box_height = max(
+        1,
+        y2 - y1
+    )
 
-    height_ratio = box_height / frame_height
+    height_ratio = (
+        box_height /
+        frame_height
+    )
 
     if height_ratio >= 0.55:
+
         return "Very Close"
 
     if height_ratio >= 0.35:
+
         return "Close"
 
     if height_ratio >= 0.18:
+
         return "Medium"
 
     return "Far"
@@ -77,14 +149,21 @@ def calculate_direction(
     frame_width
 ):
 
-    center_x = (x1 + x2) / 2
+    center_x = (
+        x1 + x2
+    ) / 2
 
-    ratio = center_x / frame_width
+    ratio = (
+        center_x /
+        frame_width
+    )
 
     if ratio < 0.35:
+
         return "Left"
 
     if ratio > 0.65:
+
         return "Right"
 
     return "Center"
@@ -92,20 +171,6 @@ def calculate_direction(
 
 # =========================================================
 # FORWARD PATH GEOMETRY
-# =========================================================
-#
-# The forward path is a trapezoid:
-#
-#             CENTER
-#             |    |
-#            /      \
-#           /        \
-#          /__________\
-#
-# Objects inside this region have higher priority.
-#
-# The path becomes wider toward the bottom because
-# nearby objects occupy more image width.
 # =========================================================
 
 def point_inside_forward_path(
@@ -115,42 +180,40 @@ def point_inside_forward_path(
     frame_height
 ):
 
-    # Forward path vertical region
-    path_top_y = frame_height * 0.35
+    path_top_y = (
+        frame_height * 0.35
+    )
+
     path_bottom_y = frame_height
 
     if y < path_top_y:
+
         return False
 
-    # Normalized vertical position
     t = (
         y - path_top_y
     ) / (
         path_bottom_y - path_top_y
     )
 
-    # Path boundaries
-    #
-    # At the top:
-    #   42% - 58%
-    #
-    # At the bottom:
-    #   10% - 90%
-
     left_ratio = (
-        0.42 - (0.32 * t)
+        0.42 -
+        (0.32 * t)
     )
 
     right_ratio = (
-        0.58 + (0.32 * t)
+        0.58 +
+        (0.32 * t)
     )
 
     left_boundary = (
-        frame_width * left_ratio
+        frame_width *
+        left_ratio
     )
 
     right_boundary = (
-        frame_width * right_ratio
+        frame_width *
+        right_ratio
     )
 
     return (
@@ -170,12 +233,6 @@ def is_in_forward_path(
     frame_width,
     frame_height
 ):
-
-    # Use the bottom-center of the object.
-    #
-    # This is more useful for navigation because
-    # the bottom of the object represents where it
-    # meets the road/ground.
 
     bottom_center_x = (
         x1 + x2
@@ -201,18 +258,30 @@ def calculate_priority(
 
     distance = detection["distance"]
 
-    in_path = detection["in_forward_path"]
+    in_path = detection[
+        "in_forward_path"
+    ]
 
-    if in_path and distance == "Very Close":
+    if (
+        in_path
+        and distance == "Very Close"
+    ):
+
         return "CRITICAL"
 
-    if in_path and distance == "Close":
+    if (
+        in_path
+        and distance == "Close"
+    ):
+
         return "HIGH"
 
     if in_path:
+
         return "HIGH"
 
     if distance == "Very Close":
+
         return "MEDIUM"
 
     return "LOW"
@@ -249,6 +318,17 @@ def create_detection(
         frame_height
     )
 
+    # NEW:
+    # Calculate relative object size
+    size = estimate_size(
+        x1,
+        y1,
+        x2,
+        y2,
+        frame_width,
+        frame_height
+    )
+
     in_forward_path = is_in_forward_path(
         x1,
         y1,
@@ -259,8 +339,11 @@ def create_detection(
     )
 
     detection = {
+
         "class": class_name,
+
         "type": object_type,
+
         "confidence": round(
             confidence,
             3
@@ -275,12 +358,18 @@ def create_detection(
 
         "distance": distance,
 
-        "in_forward_path": in_forward_path,
+        # NEW:
+        "size": size,
+
+        "in_forward_path":
+            in_forward_path,
 
         "priority": "LOW"
     }
 
-    detection["priority"] = calculate_priority(
+    detection[
+        "priority"
+    ] = calculate_priority(
         detection
     )
 
@@ -300,10 +389,17 @@ def calculate_navigation(
     if not detections:
 
         return {
+
             "status": "CLEAR",
-            "instruction": "PATH CLEAR",
-            "reason": "No objects detected",
+
+            "instruction":
+                "PATH CLEAR",
+
+            "reason":
+                "No objects detected",
+
             "priority": "NONE",
+
             "target": None
         }
 
@@ -317,18 +413,15 @@ def calculate_navigation(
         if d["in_forward_path"]
     ]
 
-
     left_objects = [
         d for d in detections
         if d["direction"] == "Left"
     ]
 
-
     right_objects = [
         d for d in detections
         if d["direction"] == "Right"
     ]
-
 
     center_objects = [
         d for d in detections
@@ -341,19 +434,32 @@ def calculate_navigation(
     # -----------------------------------------------------
 
     priority_value = {
+
         "CRITICAL": 4,
         "HIGH": 3,
         "MEDIUM": 2,
         "LOW": 1
     }
 
-
     forward_objects.sort(
+
         key=lambda d: (
-            priority_value[d["priority"]],
-            (d["y2"] - d["y1"]) *
-            (d["x2"] - d["x1"])
+
+            priority_value[
+                d["priority"]
+            ],
+
+            (
+                d["y2"] -
+                d["y1"]
+            ) *
+
+            (
+                d["x2"] -
+                d["x1"]
+            )
         ),
+
         reverse=True
     )
 
@@ -364,92 +470,141 @@ def calculate_navigation(
     # =====================================================
 
     critical_forward = [
-        d for d in forward_objects
-        if d["priority"] == "CRITICAL"
-    ]
 
+        d for d in forward_objects
+
+        if d["priority"] ==
+        "CRITICAL"
+    ]
 
     if critical_forward:
 
         target = critical_forward[0]
 
         left_blocked = any(
+
             d["distance"] in [
                 "Very Close",
                 "Close"
             ]
+
             for d in left_objects
         )
 
         right_blocked = any(
+
             d["distance"] in [
                 "Very Close",
                 "Close"
             ]
+
             for d in right_objects
         )
 
 
         # Both sides blocked
-        if left_blocked and right_blocked:
+
+        if (
+            left_blocked
+            and right_blocked
+        ):
 
             return {
+
                 "status": "STOP",
-                "instruction": "WAIT / STOP",
-                "reason": (
-                    f"{target['class']} ahead "
-                    "and both sides are blocked"
-                ),
-                "priority": "CRITICAL",
-                "target": target
+
+                "instruction":
+                    "WAIT / STOP",
+
+                "reason":
+                    (
+                        f"{target['class']} ahead "
+                        "and both sides are blocked"
+                    ),
+
+                "priority":
+                    "CRITICAL",
+
+                "target":
+                    target
             }
 
 
         # Left blocked -> move right
-        if left_blocked and not right_blocked:
+
+        if (
+            left_blocked
+            and not right_blocked
+        ):
 
             return {
+
                 "status": "AVOID",
-                "instruction": "MOVE RIGHT",
-                "reason": (
-                    f"{target['class']} ahead; "
-                    "right side appears safer"
-                ),
-                "priority": "CRITICAL",
-                "target": target
+
+                "instruction":
+                    "MOVE RIGHT",
+
+                "reason":
+                    (
+                        f"{target['class']} ahead; "
+                        "right side appears safer"
+                    ),
+
+                "priority":
+                    "CRITICAL",
+
+                "target":
+                    target
             }
 
 
         # Right blocked -> move left
-        if right_blocked and not left_blocked:
+
+        if (
+            right_blocked
+            and not left_blocked
+        ):
 
             return {
+
                 "status": "AVOID",
-                "instruction": "MOVE LEFT",
-                "reason": (
-                    f"{target['class']} ahead; "
-                    "left side appears safer"
-                ),
-                "priority": "CRITICAL",
-                "target": target
+
+                "instruction":
+                    "MOVE LEFT",
+
+                "reason":
+                    (
+                        f"{target['class']} ahead; "
+                        "left side appears safer"
+                    ),
+
+                "priority":
+                    "CRITICAL",
+
+                "target":
+                    target
             }
 
 
-        # Both sides appear open
-        #
-        # Do not blindly tell the user to move.
-        # Slow down first because an obstacle is
-        # directly ahead.
-
         return {
-            "status": "WARNING",
-            "instruction": "SLOW DOWN",
-            "reason": (
-                f"{target['class']} very close "
-                "in forward path"
-            ),
-            "priority": "CRITICAL",
-            "target": target
+
+            "status":
+                "WARNING",
+
+            "instruction":
+                "SLOW DOWN",
+
+            "reason":
+                (
+                    f"{target['class']} "
+                    "very close in forward path"
+                ),
+
+            "priority":
+                "CRITICAL",
+
+            "target":
+                target
         }
 
 
@@ -459,84 +614,132 @@ def calculate_navigation(
     # =====================================================
 
     high_forward = [
-        d for d in forward_objects
-        if d["priority"] == "HIGH"
-    ]
 
+        d for d in forward_objects
+
+        if d["priority"] ==
+        "HIGH"
+    ]
 
     if high_forward:
 
         target = high_forward[0]
 
-
         left_blocked = any(
+
             d["distance"] in [
                 "Very Close",
                 "Close"
             ]
+
             for d in left_objects
         )
 
         right_blocked = any(
+
             d["distance"] in [
                 "Very Close",
                 "Close"
             ]
+
             for d in right_objects
         )
 
 
-        if left_blocked and right_blocked:
+        if (
+            left_blocked
+            and right_blocked
+        ):
 
             return {
+
                 "status": "STOP",
-                "instruction": "WAIT / STOP",
-                "reason": (
-                    f"{target['class']} in forward path; "
-                    "both sides have nearby obstacles"
-                ),
-                "priority": "HIGH",
-                "target": target
+
+                "instruction":
+                    "WAIT / STOP",
+
+                "reason":
+                    (
+                        f"{target['class']} "
+                        "in forward path; "
+                        "both sides have nearby obstacles"
+                    ),
+
+                "priority":
+                    "HIGH",
+
+                "target":
+                    target
             }
 
 
         if left_blocked:
 
             return {
+
                 "status": "AVOID",
-                "instruction": "MOVE RIGHT",
-                "reason": (
-                    f"{target['class']} in forward path; "
-                    "left side blocked"
-                ),
-                "priority": "HIGH",
-                "target": target
+
+                "instruction":
+                    "MOVE RIGHT",
+
+                "reason":
+                    (
+                        f"{target['class']} "
+                        "in forward path; "
+                        "left side blocked"
+                    ),
+
+                "priority":
+                    "HIGH",
+
+                "target":
+                    target
             }
 
 
         if right_blocked:
 
             return {
+
                 "status": "AVOID",
-                "instruction": "MOVE LEFT",
-                "reason": (
-                    f"{target['class']} in forward path; "
-                    "right side blocked"
-                ),
-                "priority": "HIGH",
-                "target": target
+
+                "instruction":
+                    "MOVE LEFT",
+
+                "reason":
+                    (
+                        f"{target['class']} "
+                        "in forward path; "
+                        "right side blocked"
+                    ),
+
+                "priority":
+                    "HIGH",
+
+                "target":
+                    target
             }
 
 
         return {
-            "status": "WARNING",
-            "instruction": "SLOW DOWN",
-            "reason": (
-                f"{target['class']} detected "
-                "in forward path"
-            ),
-            "priority": "HIGH",
-            "target": target
+
+            "status":
+                "WARNING",
+
+            "instruction":
+                "SLOW DOWN",
+
+            "reason":
+                (
+                    f"{target['class']} "
+                    "detected in forward path"
+                ),
+
+            "priority":
+                "HIGH",
+
+            "target":
+                target
         }
 
 
@@ -546,45 +749,77 @@ def calculate_navigation(
     # =====================================================
 
     close_left = [
+
         d for d in left_objects
-        if d["distance"] == "Very Close"
+
+        if d["distance"] ==
+        "Very Close"
     ]
 
     close_right = [
+
         d for d in right_objects
-        if d["distance"] == "Very Close"
+
+        if d["distance"] ==
+        "Very Close"
     ]
 
 
-    if close_left and not close_right:
+    if (
+        close_left
+        and not close_right
+    ):
 
         target = close_left[0]
 
         return {
-            "status": "CAUTION",
-            "instruction": "KEEP RIGHT",
-            "reason": (
-                f"{target['class']} very close "
-                "on left"
-            ),
-            "priority": "MEDIUM",
-            "target": target
+
+            "status":
+                "CAUTION",
+
+            "instruction":
+                "KEEP RIGHT",
+
+            "reason":
+                (
+                    f"{target['class']} "
+                    "very close on left"
+                ),
+
+            "priority":
+                "MEDIUM",
+
+            "target":
+                target
         }
 
 
-    if close_right and not close_left:
+    if (
+        close_right
+        and not close_left
+    ):
 
         target = close_right[0]
 
         return {
-            "status": "CAUTION",
-            "instruction": "KEEP LEFT",
-            "reason": (
-                f"{target['class']} very close "
-                "on right"
-            ),
-            "priority": "MEDIUM",
-            "target": target
+
+            "status":
+                "CAUTION",
+
+            "instruction":
+                "KEEP LEFT",
+
+            "reason":
+                (
+                    f"{target['class']} "
+                    "very close on right"
+                ),
+
+            "priority":
+                "MEDIUM",
+
+            "target":
+                target
         }
 
 
@@ -593,16 +828,31 @@ def calculate_navigation(
     # SIDE OBJECTS BUT NOT DANGEROUS
     # =====================================================
 
-    if left_objects or right_objects:
+    if (
+        left_objects
+        or right_objects
+    ):
 
         return {
-            "status": "CAUTION",
-            "instruction": "PROCEED WITH CAUTION",
-            "reason": "Objects detected beside the path",
-            "priority": "LOW",
+
+            "status":
+                "CAUTION",
+
+            "instruction":
+                "PROCEED WITH CAUTION",
+
+            "reason":
+                "Objects detected beside the path",
+
+            "priority":
+                "LOW",
+
             "target": (
+
                 left_objects[0]
+
                 if left_objects
+
                 else right_objects[0]
             )
         }
@@ -610,18 +860,28 @@ def calculate_navigation(
 
     # =====================================================
     # CASE 5
-    # OBJECTS DETECTED BUT NOT IN DANGEROUS AREA
+    # OBJECTS NOT IN DANGEROUS AREA
     # =====================================================
 
     return {
-        "status": "CLEAR",
-        "instruction": "PATH CLEAR",
-        "reason": (
-            "Detected objects are outside "
-            "the immediate forward path"
-        ),
-        "priority": "LOW",
-        "target": None
+
+        "status":
+            "CLEAR",
+
+        "instruction":
+            "PATH CLEAR",
+
+        "reason":
+            (
+                "Detected objects are outside "
+                "the immediate forward path"
+            ),
+
+        "priority":
+            "LOW",
+
+        "target":
+            None
     }
 
 
@@ -631,7 +891,9 @@ def calculate_navigation(
 
 def detect(frame):
 
-    frame_height, frame_width = frame.shape[:2]
+    frame_height, frame_width = (
+        frame.shape[:2]
+    )
 
     detections = []
 
@@ -646,12 +908,10 @@ def detect(frame):
         verbose=False
     )
 
-
     for result in pothole_results:
 
         if result.boxes is None:
             continue
-
 
         for box in result.boxes:
 
@@ -663,29 +923,34 @@ def detect(frame):
                 box.cls[0]
             )
 
-            class_name = pothole_model.names[
-                class_id
-            ]
-
+            class_name = (
+                pothole_model.names[
+                    class_id
+                ]
+            )
 
             x1, y1, x2, y2 = map(
                 int,
                 box.xyxy[0].tolist()
             )
 
-
             detection = create_detection(
+
                 class_name=class_name,
+
                 object_type="pothole",
+
                 confidence=confidence,
+
                 x1=x1,
                 y1=y1,
                 x2=x2,
                 y2=y2,
+
                 frame_width=frame_width,
+
                 frame_height=frame_height
             )
-
 
             detections.append(
                 detection
@@ -695,14 +960,6 @@ def detect(frame):
     # =====================================================
     # 2. GENERAL YOLO OBJECT DETECTION
     # =====================================================
-    #
-    # IMPORTANT:
-    #
-    # There is NO class whitelist here.
-    #
-    # Every object class recognized by yolo11n.pt
-    # is returned.
-    # =====================================================
 
     obstacle_results = obstacle_model(
         frame,
@@ -710,12 +967,10 @@ def detect(frame):
         verbose=False
     )
 
-
     for result in obstacle_results:
 
         if result.boxes is None:
             continue
-
 
         for box in result.boxes:
 
@@ -727,29 +982,34 @@ def detect(frame):
                 box.cls[0]
             )
 
-            class_name = obstacle_model.names[
-                class_id
-            ]
-
+            class_name = (
+                obstacle_model.names[
+                    class_id
+                ]
+            )
 
             x1, y1, x2, y2 = map(
                 int,
                 box.xyxy[0].tolist()
             )
 
-
             detection = create_detection(
+
                 class_name=class_name,
+
                 object_type="obstacle",
+
                 confidence=confidence,
+
                 x1=x1,
                 y1=y1,
                 x2=x2,
                 y2=y2,
+
                 frame_width=frame_width,
+
                 frame_height=frame_height
             )
-
 
             detections.append(
                 detection
@@ -761,18 +1021,24 @@ def detect(frame):
     # =====================================================
 
     priority_value = {
+
         "CRITICAL": 4,
         "HIGH": 3,
         "MEDIUM": 2,
         "LOW": 1
     }
 
-
     detections.sort(
+
         key=lambda d: (
-            priority_value[d["priority"]],
+
+            priority_value[
+                d["priority"]
+            ],
+
             d["confidence"]
         ),
+
         reverse=True
     )
 
@@ -782,8 +1048,11 @@ def detect(frame):
     # =====================================================
 
     navigation = calculate_navigation(
+
         detections,
+
         frame_width,
+
         frame_height
     )
 
@@ -793,16 +1062,22 @@ def detect(frame):
     # =====================================================
 
     return {
-        "detections": detections,
 
-        "navigation": navigation,
+        "detections":
+            detections,
+
+        "navigation":
+            navigation,
 
         "frame": {
-            "width": frame_width,
-            "height": frame_height
+
+            "width":
+                frame_width,
+
+            "height":
+                frame_height
         },
 
-        "object_count": len(
-            detections
-        )
+        "object_count":
+            len(detections)
     }

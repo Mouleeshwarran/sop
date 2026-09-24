@@ -3,6 +3,7 @@ const placeholder = document.getElementById("camera-placeholder");
 
 const canvas = document.getElementById("detectionCanvas");
 const ctx = canvas.getContext("2d");
+
 const pathCanvas =
     document.getElementById("forwardPathCanvas");
 
@@ -37,9 +38,7 @@ let lastSpokenTime = 0;
 
 const VOICE_COOLDOWN = 2500;
 
-// Adaptive interval: starts at 120ms, then adjusts itself
-// based on how long the backend actually takes to respond.
-// This is the FPS/latency optimization step from the pipeline.
+// Adaptive detection interval
 const MIN_DETECTION_INTERVAL = 60;
 const MAX_DETECTION_INTERVAL = 500;
 let currentDetectionInterval = 120;
@@ -114,6 +113,7 @@ function stopCamera() {
     latestDetections = [];
 
     clearCanvas();
+    clearPathCanvas();
 
     if (cameraStream) {
 
@@ -304,8 +304,6 @@ async function detectionLoop() {
                 error
             );
 
-            // Backend struggling / network issue —
-            // back off so we don't flood it with requests.
             currentDetectionInterval =
                 Math.min(
                     currentDetectionInterval * 1.5,
@@ -330,20 +328,11 @@ async function detectionLoop() {
 
 
 // =========================================================
-// ADAPTIVE INTERVAL (FPS / LATENCY OPTIMIZATION)
-// =========================================================
-//
-// Instead of a fixed 120ms timer, the gap between frames
-// now tracks how long the backend actually took to respond.
-//
-// Fast backend / good network  -> shorter interval, higher FPS
-// Slow backend / weak network  -> longer interval, no frame pile-up
+// ADAPTIVE INTERVAL
 // =========================================================
 
 function updateAdaptiveInterval(latencyMs) {
 
-    // Aim to send the next frame a little after the
-    // previous one finished, not before.
     const target =
         latencyMs * 1.1;
 
@@ -459,6 +448,7 @@ function renderLoop() {
         renderLoop
     );
 }
+
 
 // =========================================================
 // DRAW DETECTIONS
@@ -592,8 +582,7 @@ function drawDetectionBox(
 ) {
 
     // RED = object is directly in forward path
-    //
-    // YELLOW = side object / outside immediate path
+    // YELLOW = object is outside immediate path
 
     const color =
         detection.in_forward_path
@@ -670,11 +659,21 @@ function drawDetectionBox(
 
 
     // -----------------------------------------------------
-    // Show distance and path status
+    // SIZE + DISTANCE + DIRECTION
     // -----------------------------------------------------
 
+    const size =
+        detection.size || "Unknown";
+
+    const distance =
+        detection.distance || "Unknown";
+
+    const direction =
+        detection.direction || "Unknown";
+
+
     const info =
-        `${detection.distance} • ${detection.direction}`;
+        `${size} • ${distance} • ${direction}`;
 
 
     ctx.font =
@@ -717,10 +716,6 @@ function updateDashboard(
     detections,
     navigation
 ) {
-
-    // -----------------------------------------------------
-    // Object statistics
-    // -----------------------------------------------------
 
     const potholes =
         detections.filter(
@@ -786,12 +781,7 @@ function updateDashboard(
         detectionFPS;
 
 
-    // -----------------------------------------------------
-    // IMPORTANT:
-    //
-    // Navigation decision comes from BACKEND.
-    // Frontend does not decide based on object class.
-    // -----------------------------------------------------
+    // Navigation decision comes from backend
 
     if (navigation) {
 
@@ -904,8 +894,6 @@ function updateNavigation(
             new Date().toLocaleTimeString();
 
 
-        // Speak "path clear" too, but only once when we
-        // switch INTO the clear state (not every frame).
         if (
             lastInstruction !== "PATH CLEAR"
         ) {
@@ -917,7 +905,7 @@ function updateNavigation(
 
             speakNavigation(
                 "PATH CLEAR",
-                language ? language.value : "en-IN"
+                language ? language.value : "en"
             );
 
             lastInstruction =
@@ -964,37 +952,85 @@ function updateNavigation(
 
 
     // -----------------------------------------------------
-    // Voice/message uses the DECISION,
-    // not the object category.
+    // FIND TARGET SIZE
+    // -----------------------------------------------------
+
+    let targetSize =
+        target.size || "Unknown";
+
+    let targetClass =
+        target.class ||
+        target.type ||
+        "Obstacle";
+
+
+    // If backend navigation target does not contain size,
+    // find the corresponding detection.
+
+    if (
+        targetSize === "Unknown" &&
+        latestDetections.length > 0
+    ) {
+
+        const matchingDetection =
+            latestDetections.find(
+                detection =>
+                    detection.class === target.class &&
+                    detection.direction === target.direction
+            );
+
+        if (matchingDetection) {
+
+            targetSize =
+                matchingDetection.size ||
+                "Unknown";
+
+            targetClass =
+                matchingDetection.class ||
+                targetClass;
+        }
+    }
+
+
+    // -----------------------------------------------------
+    // VOICE
     // -----------------------------------------------------
 
     const instruction =
         navigation.instruction;
 
+
+    const voiceKey =
+        `${targetSize}-${targetClass}-${instruction}`;
+
+
     if (
-        instruction !== lastInstruction
+        voiceKey !== lastInstruction
     ) {
 
         voiceText.textContent =
-            `⚠️ ${instruction}`;
+            `⚠️ ${targetSize} ${formatClassName(targetClass)}. ${instruction}`;
 
         alertTime.textContent =
             new Date().toLocaleTimeString();
 
-        // Pass the currently selected language so the
-        // spoken message comes out in Tamil / Hindi / English.
+
         const language =
             document.getElementById(
                 "languageSelect"
             );
 
+
         speakNavigation(
             instruction,
-            language ? language.value : "en-IN"
+            language ? language.value : "en",
+            targetSize,
+            targetClass
         );
 
+
         lastInstruction =
-            instruction;
+            voiceKey;
     }
 }
 
@@ -1034,6 +1070,10 @@ function resetDashboard() {
         "summaryFps"
     ).textContent = "0";
 
+
+    lastInstruction = "";
+    lastSpokenInstruction = "";
+    lastSpokenTime = 0;
 
     updateClearState();
 }
@@ -1132,6 +1172,10 @@ function formatClassName(
     className
 ) {
 
+    if (!className) {
+        return "Obstacle";
+    }
+
     return className
         .charAt(0)
         .toUpperCase()
@@ -1173,6 +1217,7 @@ switchBtn.addEventListener(
     switchCamera
 );
 
+
 // =========================================================
 // DYNAMIC FORWARD PATH
 // =========================================================
@@ -1200,8 +1245,7 @@ function drawForwardPath() {
     );
 
 
-    // Forward path trapezoid.
-    // Narrow far away, wider near the camera.
+    // Forward path trapezoid
 
     const topY =
         height * 0.35;
@@ -1327,133 +1371,401 @@ function clearPathCanvas() {
     );
 }
 
+
 // =========================================================
 // VOICE NAVIGATION
 // =========================================================
 
-function speakNavigation(instruction, lang) {
+function speakNavigation(
+    instruction,
+    lang,
+    size = null,
+    objectClass = null
+) {
 
     const voiceToggle =
-        document.getElementById("voiceToggle");
+        document.getElementById(
+            "voiceToggle"
+        );
+
 
     // Voice alerts disabled
-    if (voiceToggle && !voiceToggle.checked) {
-        return;
-    }
 
-    if (!("speechSynthesis" in window)) {
-        console.warn("Speech synthesis is not supported.");
-        return;
-    }
-
-    const now = Date.now();
-
-    // Prevent repeated announcements
     if (
-        instruction === lastSpokenInstruction &&
-        now - lastSpokenTime < VOICE_COOLDOWN
+        voiceToggle &&
+        !voiceToggle.checked
     ) {
         return;
     }
 
-    // Stop previous speech
-    window.speechSynthesis.cancel();
 
-    const selectedLanguage =
-        lang ||
-        (
-            document.getElementById("languageSelect")
-                ? document.getElementById("languageSelect").value
-                : "en-IN"
+    if (
+        !("speechSynthesis" in window)
+    ) {
+
+        console.warn(
+            "Speech synthesis is not supported."
         );
 
-    // The <select> gives values like "en-IN" / "ta-IN" / "hi-IN".
-    // The dictionary keys are just "en" / "ta" / "hi", so split it here.
-    const langCode = selectedLanguage.split("-")[0];
+        return;
+    }
+
+
+    const now =
+        Date.now();
+
+
+    // Include size and object in the
+    // repeated-message check.
+
+    const spokenKey =
+        `${size || ""}-${objectClass || ""}-${instruction}`;
+
+
+    if (
+        spokenKey === lastSpokenInstruction &&
+        now - lastSpokenTime <
+        VOICE_COOLDOWN
+    ) {
+        return;
+    }
+
+
+    // Stop previous speech
+
+    window.speechSynthesis.cancel();
+
+
+    const language =
+        lang ||
+        (
+            document.getElementById(
+                "languageSelect"
+            ) ?
+            document.getElementById(
+                "languageSelect"
+            ).value :
+            "en"
+        );
+
 
     const message =
-        createVoiceMessage(instruction, langCode);
+        createVoiceMessage(
+            instruction,
+            language,
+            size,
+            objectClass
+        );
+
 
     const utterance =
-        new SpeechSynthesisUtterance(message);
+        new SpeechSynthesisUtterance(
+            message
+        );
 
-    if (langCode === "ta") {
 
-        utterance.lang = "ta-IN";
+    if (
+        language === "ta"
+    ) {
 
-    } else if (langCode === "hi") {
+        utterance.lang =
+            "ta-IN";
 
-        utterance.lang = "hi-IN";
+    } else if (
+        language === "hi"
+    ) {
+
+        utterance.lang =
+            "hi-IN";
 
     } else {
 
-        utterance.lang = "en-IN";
+        utterance.lang =
+            "en-IN";
     }
 
-    utterance.rate = 0.95;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
 
-    window.speechSynthesis.speak(utterance);
+    utterance.rate =
+        0.95;
 
-    lastSpokenInstruction = instruction;
-    lastSpokenTime = now;
+    utterance.pitch =
+        1.0;
+
+    utterance.volume =
+        1.0;
+
+
+    window.speechSynthesis.speak(
+        utterance
+    );
+
+
+    lastSpokenInstruction =
+        spokenKey;
+
+    lastSpokenTime =
+        now;
 }
 
 
 // =========================================================
-// NATURAL VOICE MESSAGE (English / Tamil / Hindi)
+// NATURAL VOICE MESSAGE
+// English / Tamil / Hindi
 // =========================================================
 
 const VOICE_MESSAGES = {
 
     en: {
-        "PATH CLEAR": "Path clear. Safe to proceed.",
-        "SLOW DOWN": "Obstacle ahead. Slow down.",
-        "MOVE LEFT": "Obstacle ahead. Move left.",
-        "MOVE RIGHT": "Obstacle ahead. Move right.",
-        "KEEP LEFT": "Obstacle on the right. Keep left.",
-        "KEEP RIGHT": "Obstacle on the left. Keep right.",
-        "WAIT / STOP": "Obstacle ahead. Wait. Stop.",
-        "PROCEED WITH CAUTION": "Obstacles nearby. Proceed with caution."
+
+        "PATH CLEAR":
+            "Path clear. Safe to proceed.",
+
+        "SLOW DOWN":
+            "Obstacle ahead. Slow down.",
+
+        "MOVE LEFT":
+            "Obstacle ahead. Move left.",
+
+        "MOVE RIGHT":
+            "Obstacle ahead. Move right.",
+
+        "KEEP LEFT":
+            "Obstacle on the right. Keep left.",
+
+        "KEEP RIGHT":
+            "Obstacle on the left. Keep right.",
+
+        "WAIT / STOP":
+            "Obstacle ahead. Wait. Stop.",
+
+        "PROCEED WITH CAUTION":
+            "Obstacles nearby. Proceed with caution."
     },
+
 
     ta: {
-        "PATH CLEAR": "வழி தெளிவாக உள்ளது. பாதுகாப்பாக செல்லலாம்.",
-        "SLOW DOWN": "முன்னால் தடை உள்ளது. மெதுவாக செல்லுங்கள்.",
-        "MOVE LEFT": "முன்னால் தடை உள்ளது. இடதுபுறம் நகருங்கள்.",
-        "MOVE RIGHT": "முன்னால் தடை உள்ளது. வலதுபுறம் நகருங்கள்.",
-        "KEEP LEFT": "வலதுபுறம் தடை உள்ளது. இடதுபுறமாக இருங்கள்.",
-        "KEEP RIGHT": "இடதுபுறம் தடை உள்ளது. வலதுபுறமாக இருங்கள்.",
-        "WAIT / STOP": "முன்னால் தடை உள்ளது. நில்லுங்கள்.",
-        "PROCEED WITH CAUTION": "அருகில் தடைகள் உள்ளன. கவனமாக செல்லுங்கள்."
+
+        "PATH CLEAR":
+            "வழி தெளிவாக உள்ளது. பாதுகாப்பாக செல்லலாம்.",
+
+        "SLOW DOWN":
+            "முன்னால் தடை உள்ளது. மெதுவாக செல்லுங்கள்.",
+
+        "MOVE LEFT":
+            "முன்னால் தடை உள்ளது. இடதுபுறம் நகருங்கள்.",
+
+        "MOVE RIGHT":
+            "முன்னால் தடை உள்ளது. வலதுபுறம் நகருங்கள்.",
+
+        "KEEP LEFT":
+            "வலதுபுறம் தடை உள்ளது. இடதுபுறமாக இருங்கள்.",
+
+        "KEEP RIGHT":
+            "இடதுபுறம் தடை உள்ளது. வலதுபுறமாக இருங்கள்.",
+
+        "WAIT / STOP":
+            "முன்னால் தடை உள்ளது. நில்லுங்கள்.",
+
+        "PROCEED WITH CAUTION":
+            "அருகில் தடைகள் உள்ளன. கவனமாக செல்லுங்கள்."
     },
 
+
     hi: {
-        "PATH CLEAR": "रास्ता साफ़ है। आगे बढ़ सकते हैं।",
-        "SLOW DOWN": "आगे बाधा है। धीरे चलें।",
-        "MOVE LEFT": "आगे बाधा है। बाएं मुड़ें।",
-        "MOVE RIGHT": "आगे बाधा है। दाएं मुड़ें।",
-        "KEEP LEFT": "दाईं ओर बाधा है। बाईं ओर रहें।",
-        "KEEP RIGHT": "बाईं ओर बाधा है। दाईं ओर रहें।",
-        "WAIT / STOP": "आगे बाधा है। रुकें।",
-        "PROCEED WITH CAUTION": "आस-पास बाधाएं हैं। सावधानी से चलें।"
+
+        "PATH CLEAR":
+            "रास्ता साफ़ है। आगे बढ़ सकते हैं।",
+
+        "SLOW DOWN":
+            "आगे बाधा है। धीरे चलें।",
+
+        "MOVE LEFT":
+            "आगे बाधा है। बाएं मुड़ें।",
+
+        "MOVE RIGHT":
+            "आगे बाधा है। दाएं मुड़ें।",
+
+        "KEEP LEFT":
+            "दाईं ओर बाधा है। बाईं ओर रहें।",
+
+        "KEEP RIGHT":
+            "बाईं ओर बाधा है। दाईं ओर रहें।",
+
+        "WAIT / STOP":
+            "आगे बाधा है। रुकें।",
+
+        "PROCEED WITH CAUTION":
+            "आस-पास बाधाएं हैं। सावधानी से चलें।"
     }
 
 };
 
+
+// =========================================================
+// CREATE VOICE MESSAGE
+// =========================================================
+
 function createVoiceMessage(
     instruction,
-    lang
+    lang,
+    size = null,
+    objectClass = null
 ) {
+
+    // PATH CLEAR does not need size
+
+    if (
+        instruction === "PATH CLEAR"
+    ) {
+
+        const dictionary =
+            VOICE_MESSAGES[lang] ||
+            VOICE_MESSAGES.en;
+
+        return (
+            dictionary[instruction] ||
+            VOICE_MESSAGES.en[instruction] ||
+            instruction
+        );
+    }
+
 
     const dictionary =
         VOICE_MESSAGES[lang] ||
         VOICE_MESSAGES.en;
 
-    return (
+
+    const baseMessage =
         dictionary[instruction] ||
         VOICE_MESSAGES.en[instruction] ||
+        instruction;
+
+
+    // -----------------------------------------------------
+    // ENGLISH
+    // -----------------------------------------------------
+
+    if (
+        lang === "en" &&
+        size &&
+        objectClass
+    ) {
+
+        const objectName =
+            formatClassName(objectClass);
+
+
+        const action =
+            getEnglishAction(instruction);
+
+
+        return `${size} ${objectName} ahead. ${action}`;
+    }
+
+
+    // -----------------------------------------------------
+    // TAMIL
+    // -----------------------------------------------------
+
+    if (
+        lang === "ta" &&
+        size &&
+        objectClass
+    ) {
+
+        const sizeTamil = {
+
+            "Small":
+                "சிறிய",
+
+            "Medium":
+                "நடுத்தர",
+
+            "Large":
+                "பெரிய"
+        };
+
+
+        const tamilSize =
+            sizeTamil[size] ||
+            size;
+
+
+        return `${tamilSize} தடை முன்னால் உள்ளது. ${baseMessage}`;
+    }
+
+
+    // -----------------------------------------------------
+    // HINDI
+    // -----------------------------------------------------
+
+    if (
+        lang === "hi" &&
+        size &&
+        objectClass
+    ) {
+
+        const sizeHindi = {
+
+            "Small":
+                "छोटी",
+
+            "Medium":
+                "मध्यम",
+
+            "Large":
+                "बड़ी"
+        };
+
+
+        const hindiSize =
+            sizeHindi[size] ||
+            size;
+
+
+        return `${hindiSize} बाधा आगे है। ${baseMessage}`;
+    }
+
+
+    return baseMessage;
+}
+
+
+// =========================================================
+// ENGLISH ACTION
+// =========================================================
+
+function getEnglishAction(
+    instruction
+) {
+
+    const actions = {
+
+        "SLOW DOWN":
+            "Slow down.",
+
+        "MOVE LEFT":
+            "Move left.",
+
+        "MOVE RIGHT":
+            "Move right.",
+
+        "KEEP LEFT":
+            "Keep left.",
+
+        "KEEP RIGHT":
+            "Keep right.",
+
+        "WAIT / STOP":
+            "Wait. Stop.",
+
+        "PROCEED WITH CAUTION":
+            "Proceed with caution."
+    };
+
+
+    return (
+        actions[instruction] ||
         instruction
     );
 }
